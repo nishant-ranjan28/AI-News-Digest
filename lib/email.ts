@@ -70,7 +70,7 @@ export async function sendDigestEmail(
   await Promise.allSettled(
     subscriberEmails.map((email) =>
       resend.emails.send({
-        from: 'AI News Digest <digest@yourdomain.com>',
+        from: 'AI News Digest <onboarding@resend.dev>',
         to: email,
         subject: `AI News Digest — ${date}`,
         html,

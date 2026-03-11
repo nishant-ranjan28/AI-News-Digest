@@ -19,7 +19,9 @@ async function searchTavily(query: string, apiKey: string): Promise<TavilyArticl
     body: JSON.stringify({
       api_key: apiKey,
       query,
-      search_depth: 'basic',
+      topic: 'news',
+      days: 3,
+      search_depth: 'advanced',
       max_results: 9,
       include_raw_content: false,
     }),
