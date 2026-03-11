@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI News Digest
 
-## Getting Started
+Daily AI news digest powered by Tavily + Gemini → Groq → Gemini fallback chain. Automatically fetches, summarizes, and emails the top AI stories every morning.
 
-First, run the development server:
+## Stack
+
+- **Framework:** Next.js (App Router, TypeScript)
+- **Database:** Supabase (Postgres)
+- **News:** Tavily API
+- **AI:** Gemini 2.5 Flash → Groq llama-3.3-70b → Gemini paid (fallback chain)
+- **Email:** Resend
+- **Hosting:** Vercel + Vercel Cron
+
+## Setup
+
+1. Clone and `cd ai-news-digest`
+2. `npm install`
+3. Copy `.env.example` to `.env.local` and fill in your API keys
+4. Run the schema in your Supabase SQL editor: `supabase/schema.sql`
+5. `npm run dev`
+
+## Environment Variables
+
+| Variable | Where to get it |
+|---|---|
+| `TAVILY_API_KEY` | tavily.com |
+| `GEMINI_API_KEY` | aistudio.google.com |
+| `GROQ_API_KEY` | console.groq.com |
+| `SUPABASE_URL` | supabase.com → Project Settings |
+| `SUPABASE_ANON_KEY` | supabase.com → Project Settings |
+| `RESEND_API_KEY` | resend.com |
+| `CRON_SECRET` | Any random string: `openssl rand -base64 32` |
+
+## Testing the Pipeline Manually
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+curl -H "Authorization: Bearer YOUR_CRON_SECRET" http://localhost:3000/api/cron
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Running Tests
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm test
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploy
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Push to GitHub
+2. Connect to Vercel
+3. Add all env vars in Vercel dashboard
+4. Vercel Cron auto-triggers at 00:30 UTC (06:00 AM IST) daily
