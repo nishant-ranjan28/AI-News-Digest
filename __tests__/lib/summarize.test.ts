@@ -39,28 +39,7 @@ describe('summarizeArticle', () => {
     process.env.GROQ_API_KEY = 'test-groq-key'
   })
 
-  it('returns parsed result from Gemini on success', async () => {
-    const mockModel = {
-      generateContent: jest.fn().mockResolvedValue({
-        response: { text: () => JSON.stringify(validResult) },
-      }),
-    }
-    ;(GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
-      getGenerativeModel: jest.fn().mockReturnValue(mockModel),
-    }))
-
-    const result = await summarizeArticle(mockArticle)
-    expect(result.category).toBe('LLM')
-    expect(result.importance_score).toBe(9)
-    expect(result.summary).toBeDefined()
-  })
-
-  it('falls back to Groq when Gemini fails', async () => {
-    ;(GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
-      getGenerativeModel: jest.fn().mockReturnValue({
-        generateContent: jest.fn().mockRejectedValue(new Error('Rate limit')),
-      }),
-    }))
+  it('returns parsed result from Groq on success', async () => {
     ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
       chat: {
         completions: {
@@ -69,6 +48,28 @@ describe('summarizeArticle', () => {
           }),
         },
       },
+    }))
+
+    const result = await summarizeArticle(mockArticle)
+    expect(result.category).toBe('LLM')
+    expect(result.importance_score).toBe(9)
+    expect(result.summary).toBeDefined()
+  })
+
+  it('falls back to Gemini when Groq fails', async () => {
+    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: jest.fn().mockRejectedValue(new Error('Rate limit')),
+        },
+      },
+    }))
+    ;(GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
+      getGenerativeModel: jest.fn().mockReturnValue({
+        generateContent: jest.fn().mockResolvedValue({
+          response: { text: () => JSON.stringify(validResult) },
+        }),
+      }),
     }))
 
     const result = await summarizeArticle(mockArticle)

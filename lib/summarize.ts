@@ -62,15 +62,15 @@ export async function summarizeArticle(article: {
   const truncatedContent = content.slice(0, 3000)
 
   try {
-    return await tryGemini(title, truncatedContent)
+    return await tryGroq(title, truncatedContent)
   } catch (e1) {
-    console.warn('Gemini failed, trying Groq:', (e1 as Error).message)
+    console.warn('Groq failed, trying Gemini:', (e1 as Error).message)
   }
 
   try {
-    return await tryGroq(title, truncatedContent)
+    return await tryGemini(title, truncatedContent)
   } catch (e2) {
-    console.warn('Groq failed, trying Gemini paid:', (e2 as Error).message)
+    console.warn('Gemini failed, trying Gemini paid:', (e2 as Error).message)
   }
 
   try {
