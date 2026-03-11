@@ -61,7 +61,7 @@ describe('summarizeArticle', () => {
         generateContent: jest.fn().mockRejectedValue(new Error('Rate limit')),
       }),
     }))
-    ;(Groq as jest.Mock).mockImplementation(() => ({
+    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
       chat: {
         completions: {
           create: jest.fn().mockResolvedValue({
@@ -81,7 +81,7 @@ describe('summarizeArticle', () => {
         generateContent: jest.fn().mockRejectedValue(new Error('fail')),
       }),
     }))
-    ;(Groq as jest.Mock).mockImplementation(() => ({
+    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
       chat: {
         completions: {
           create: jest.fn().mockRejectedValue(new Error('fail')),
