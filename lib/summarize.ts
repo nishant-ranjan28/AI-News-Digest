@@ -82,17 +82,17 @@ export async function summarizeArticle(article: {
   try {
     return await tryGroq(title, truncatedContent)
   } catch (e1) {
-    console.warn('Groq failed, trying Gemini:', (e1 as Error).message)
-  }
-
-  try {
-    return await tryGemini(title, truncatedContent)
-  } catch (e2) {
-    console.warn('Gemini failed, trying OpenRouter:', (e2 as Error).message)
+    console.warn('Groq failed, trying OpenRouter:', (e1 as Error).message)
   }
 
   try {
     return await tryOpenRouter(title, truncatedContent)
+  } catch (e2) {
+    console.warn('OpenRouter failed, trying Gemini:', (e2 as Error).message)
+  }
+
+  try {
+    return await tryGemini(title, truncatedContent)
   } catch (e3) {
     throw new Error(`All AI providers failed: ${(e3 as Error).message}`)
   }

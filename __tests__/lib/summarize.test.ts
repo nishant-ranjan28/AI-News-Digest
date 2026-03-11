@@ -68,34 +68,9 @@ describe('summarizeArticle', () => {
     expect(result.summary).toBeDefined()
   })
 
-  it('falls back to Gemini when Groq fails', async () => {
+  it('falls back to OpenRouter when Groq fails', async () => {
     ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
-      chat: {
-        completions: {
-          create: jest.fn().mockRejectedValue(new Error('Rate limit')),
-        },
-      },
-    }))
-    ;(GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
-      getGenerativeModel: jest.fn().mockReturnValue({
-        generateContent: jest.fn().mockResolvedValue({
-          response: { text: () => JSON.stringify(validResult) },
-        }),
-      }),
-    }))
-
-    const result = await summarizeArticle(mockArticle)
-    expect(result.summary).toBeDefined()
-  })
-
-  it('falls back to OpenRouter when Groq and Gemini fail', async () => {
-    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
-      chat: { completions: { create: jest.fn().mockRejectedValue(new Error('fail')) } },
-    }))
-    ;(GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
-      getGenerativeModel: jest.fn().mockReturnValue({
-        generateContent: jest.fn().mockRejectedValue(new Error('fail')),
-      }),
+      chat: { completions: { create: jest.fn().mockRejectedValue(new Error('Rate limit')) } },
     }))
     ;(OpenAI as unknown as jest.Mock).mockImplementation(() => ({
       chat: {
@@ -105,6 +80,25 @@ describe('summarizeArticle', () => {
           }),
         },
       },
+    }))
+
+    const result = await summarizeArticle(mockArticle)
+    expect(result.summary).toBeDefined()
+  })
+
+  it('falls back to Gemini when Groq and OpenRouter fail', async () => {
+    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
+      chat: { completions: { create: jest.fn().mockRejectedValue(new Error('fail')) } },
+    }))
+    ;(OpenAI as unknown as jest.Mock).mockImplementation(() => ({
+      chat: { completions: { create: jest.fn().mockRejectedValue(new Error('fail')) } },
+    }))
+    ;(GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
+      getGenerativeModel: jest.fn().mockReturnValue({
+        generateContent: jest.fn().mockResolvedValue({
+          response: { text: () => JSON.stringify(validResult) },
+        }),
+      }),
     }))
 
     const result = await summarizeArticle(mockArticle)
