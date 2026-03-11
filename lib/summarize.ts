@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import Groq from 'groq-sdk'
+import OpenAI from 'openai'
 
 export type SummarizeResult = {
   summary: string
@@ -40,6 +41,23 @@ async function tryGemini(title: string, content: string): Promise<SummarizeResul
   return parseResult(result.response.text())
 }
 
+async function tryOpenRouter(title: string, content: string): Promise<SummarizeResult> {
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) throw new Error('Missing OPENROUTER_API_KEY')
+
+  const client = new OpenAI({
+    apiKey,
+    baseURL: 'https://openrouter.ai/api/v1',
+  })
+  const completion = await client.chat.completions.create({
+    messages: [{ role: 'user', content: PROMPT(title, content) }],
+    model: 'meta-llama/llama-3.3-70b-instruct:free',
+    response_format: { type: 'json_object' },
+  })
+  const text = completion.choices[0]?.message?.content ?? ''
+  return parseResult(text)
+}
+
 async function tryGroq(title: string, content: string): Promise<SummarizeResult> {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) throw new Error('Missing GROQ_API_KEY')
@@ -70,11 +88,11 @@ export async function summarizeArticle(article: {
   try {
     return await tryGemini(title, truncatedContent)
   } catch (e2) {
-    console.warn('Gemini failed, trying Gemini paid:', (e2 as Error).message)
+    console.warn('Gemini failed, trying OpenRouter:', (e2 as Error).message)
   }
 
   try {
-    return await tryGemini(title, truncatedContent)
+    return await tryOpenRouter(title, truncatedContent)
   } catch (e3) {
     throw new Error(`All AI providers failed: ${(e3 as Error).message}`)
   }
