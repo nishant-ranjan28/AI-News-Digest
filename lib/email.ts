@@ -1,4 +1,4 @@
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 import { Article } from './db'
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -58,10 +58,16 @@ export async function sendDigestEmail(
 ): Promise<void> {
   if (subscriberEmails.length === 0) return
 
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) throw new Error('Missing RESEND_API_KEY')
+  const user = process.env.BREVO_USER
+  const pass = process.env.BREVO_SMTP_KEY
+  if (!user || !pass) throw new Error('Missing BREVO_USER or BREVO_SMTP_KEY')
 
-  const resend = new Resend(apiKey)
+  const transporter = nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    auth: { user, pass },
+  })
+
   const date = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   })
@@ -69,8 +75,8 @@ export async function sendDigestEmail(
 
   await Promise.allSettled(
     subscriberEmails.map((email) =>
-      resend.emails.send({
-        from: 'AI News Digest <onboarding@resend.dev>',
+      transporter.sendMail({
+        from: `AI News Digest <${process.env.BREVO_SENDER_EMAIL ?? user}>`,
         to: email,
         subject: `AI News Digest — ${date}`,
         html,
