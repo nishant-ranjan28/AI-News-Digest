@@ -23,9 +23,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const log: string[] = []
+  const step = (msg: string) => { log.push(msg); console.log(`[cron] ${msg}`) }
+
   try {
+    step('Starting pipeline')
+
+    step('Fetching articles from Tavily...')
     const articles = await fetchAINews()
-    console.log(`Fetched ${articles.length} articles from Tavily`)
+    step(`Fetched ${articles.length} articles`)
 
     let saved = 0
     let skipped = 0
@@ -35,6 +41,7 @@ export async function GET(req: NextRequest) {
       if (exists) { skipped++; continue }
 
       try {
+        step(`Summarizing: "${article.title.slice(0, 60)}"`)
         const result = await summarizeArticle({ title: article.title, content: article.content })
         await saveArticle({
           title: article.title,
@@ -48,25 +55,37 @@ export async function GET(req: NextRequest) {
         saved++
         await sleep(500)
       } catch (err) {
-        console.error(`Failed to process article "${article.title}":`, err)
+        step(`Failed article "${article.title.slice(0, 60)}": ${(err as Error).message?.slice(0, 100)}`)
       }
     }
 
+    step(`Processing done — saved: ${saved}, skipped: ${skipped}`)
+
     const today = new Date().toISOString().split('T')[0]
+    step(`Fetching today's articles (${today})...`)
     const todayArticles = await getArticlesByDate(today)
     const top10 = todayArticles.slice(0, 10)
+    step(`Found ${todayArticles.length} articles, using top ${top10.length}`)
+
+    step('Fetching subscribers...')
     const subscribers = await getActiveSubscribers()
     const emails = subscribers.map((s) => s.email)
+    step(`Found ${emails.length} subscriber(s)`)
 
     if (emails.length > 0 && top10.length > 0) {
+      step('Sending digest emails...')
       await sendDigestEmail(top10, emails)
+      step('Emails sent')
+    } else {
+      step('Skipped email — no subscribers or no articles')
     }
 
-    return NextResponse.json({ success: true, saved, skipped, emailsSent: emails.length })
+    return NextResponse.json({ success: true, saved, skipped, emailsSent: emails.length, log })
   } catch (err) {
-    console.error('Cron pipeline error:', err)
+    const message = (err as Error).message?.slice(0, 200) ?? 'Unknown error'
+    step(`Pipeline failed: ${message}`)
     return NextResponse.json(
-      { error: 'Pipeline failed', details: (err as Error).message },
+      { error: 'Pipeline failed', details: message, log },
       { status: 500 }
     )
   }
