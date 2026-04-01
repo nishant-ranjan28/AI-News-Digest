@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { after } from 'next/server'
 import { fetchAINews } from '@/lib/tavily'
 import { summarizeArticle } from '@/lib/summarize'
 import { articleExists, saveArticle, getArticlesByDate, getActiveSubscribers } from '@/lib/db'
@@ -15,16 +16,8 @@ function timingSafeEqual(a: string, b: string): boolean {
   return require('crypto').timingSafeEqual(bufA, bufB)
 }
 
-export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET
-
-  if (!cronSecret || !authHeader || !timingSafeEqual(authHeader, `Bearer ${cronSecret}`)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const log: string[] = []
-  const step = (msg: string) => { log.push(msg); console.log(`[cron] ${msg}`) }
+async function runPipeline() {
+  const step = (msg: string) => console.log(`[cron] ${msg}`)
 
   try {
     step('Starting pipeline')
@@ -80,13 +73,22 @@ export async function GET(req: NextRequest) {
       step('Skipped email — no subscribers or no articles')
     }
 
-    return NextResponse.json({ success: true, saved, skipped, emailsSent: emails.length, log })
+    step('Pipeline complete')
   } catch (err) {
     const message = (err as Error).message?.slice(0, 200) ?? 'Unknown error'
-    step(`Pipeline failed: ${message}`)
-    return NextResponse.json(
-      { error: 'Pipeline failed', details: message, log },
-      { status: 500 }
-    )
+    console.error(`[cron] Pipeline failed: ${message}`)
   }
+}
+
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get('authorization')
+  const cronSecret = process.env.CRON_SECRET
+
+  if (!cronSecret || !authHeader || !timingSafeEqual(authHeader, `Bearer ${cronSecret}`)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  after(runPipeline)
+
+  return NextResponse.json({ success: true, message: 'Pipeline started' })
 }
