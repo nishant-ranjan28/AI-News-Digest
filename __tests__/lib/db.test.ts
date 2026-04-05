@@ -1,4 +1,4 @@
-import { getSupabaseClient, articleExists, saveArticle, getArticlesByDate, getActiveSubscribers } from '@/lib/db'
+import { getSupabaseClient, articleExists, saveArticle, getArticlesByDate, getActiveSubscribers, logEmailResult } from '@/lib/db'
 
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({
@@ -43,5 +43,29 @@ describe('db helpers', () => {
       published_date: '2026-03-11',
     }
     await expect(saveArticle(article)).resolves.not.toThrow()
+  })
+
+  it('logEmailResult inserts without throwing', async () => {
+    await expect(
+      logEmailResult({
+        recipient: 'user@test.com',
+        status: 'sent',
+        provider: 'sendgrid',
+      })
+    ).resolves.not.toThrow()
+  })
+
+  it('logEmailResult handles errors gracefully', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+    // logEmailResult catches its own errors, so it should never throw
+    await expect(
+      logEmailResult({
+        recipient: 'user@test.com',
+        status: 'failed',
+        provider: 'resend',
+        error_message: 'Some error',
+      })
+    ).resolves.not.toThrow()
+    consoleSpy.mockRestore()
   })
 })

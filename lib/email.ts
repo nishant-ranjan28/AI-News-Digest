@@ -1,5 +1,7 @@
+import sgMail from '@sendgrid/mail'
 import { Resend } from 'resend'
 import { Article } from './db'
+import { logEmailResult } from './db'
 
 const CATEGORY_COLORS: Record<string, string> = {
   LLM: '#6366f1',
@@ -52,30 +54,100 @@ function buildEmailHtml(articles: Article[], date: string): string {
   </html>`
 }
 
+type SendResult = { success: boolean; error?: string }
+
+async function sendViaSendGrid(
+  to: string,
+  from: string,
+  subject: string,
+  html: string
+): Promise<SendResult> {
+  try {
+    await sgMail.send({ to, from, subject, html })
+    return { success: true }
+  } catch (err) {
+    const message = (err as Error).message?.slice(0, 200) ?? 'Unknown SendGrid error'
+    return { success: false, error: message }
+  }
+}
+
+async function sendViaResend(
+  to: string,
+  subject: string,
+  html: string
+): Promise<SendResult> {
+  try {
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey) return { success: false, error: 'Missing RESEND_API_KEY' }
+
+    const resend = new Resend(apiKey)
+    const { error } = await resend.emails.send({
+      from: 'AI News Digest <onboarding@resend.dev>',
+      to,
+      subject,
+      html,
+    })
+    if (error) return { success: false, error: error.message }
+    return { success: true }
+  } catch (err) {
+    const message = (err as Error).message?.slice(0, 200) ?? 'Unknown Resend error'
+    return { success: false, error: message }
+  }
+}
+
 export async function sendDigestEmail(
   articles: Article[],
   subscriberEmails: string[]
 ): Promise<void> {
   if (subscriberEmails.length === 0) return
 
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) throw new Error('Missing RESEND_API_KEY')
+  const sendgridKey = process.env.SENDGRID_API_KEY
+  if (!sendgridKey) throw new Error('Missing SENDGRID_API_KEY')
 
-  const resend = new Resend(apiKey)
+  const senderEmail = process.env.SENDER_EMAIL
+  if (!senderEmail) throw new Error('Missing SENDER_EMAIL')
+
+  sgMail.setApiKey(sendgridKey)
 
   const date = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   })
+  const subject = `AI News Digest — ${date}`
   const html = buildEmailHtml(articles, date)
 
-  await Promise.allSettled(
-    subscriberEmails.map((email) =>
-      resend.emails.send({
-        from: 'AI News Digest <onboarding@resend.dev>',
-        to: email,
-        subject: `AI News Digest — ${date}`,
-        html,
+  const failedEmails: string[] = []
+
+  // Phase 1: Send via SendGrid
+  for (const email of subscriberEmails) {
+    const result = await sendViaSendGrid(email, senderEmail, subject, html)
+    if (result.success) {
+      console.log(`[email] SendGrid sent to ${email}`)
+      await logEmailResult({ recipient: email, status: 'sent', provider: 'sendgrid' })
+    } else {
+      console.error(`[email] SendGrid failed for ${email}: ${result.error}`)
+      await logEmailResult({
+        recipient: email, status: 'failed', provider: 'sendgrid',
+        error_message: result.error,
       })
-    )
-  )
+      failedEmails.push(email)
+    }
+  }
+
+  // Phase 2: Retry failures via Resend
+  if (failedEmails.length > 0) {
+    console.log(`[email] Retrying ${failedEmails.length} failed email(s) via Resend`)
+    for (const email of failedEmails) {
+      const result = await sendViaResend(email, subject, html)
+      if (result.success) {
+        console.log(`[email] Resend sent to ${email}`)
+        await logEmailResult({ recipient: email, status: 'sent', provider: 'resend' })
+      } else {
+        console.error(`[email] Resend also failed for ${email}: ${result.error}`)
+        await logEmailResult({
+          recipient: email, status: 'failed', provider: 'resend',
+          error_message: result.error,
+        })
+      }
+    }
+  }
 }

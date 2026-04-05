@@ -19,6 +19,13 @@ export type Subscriber = {
   active?: boolean
 }
 
+export type EmailLog = {
+  recipient: string
+  status: 'sent' | 'failed'
+  provider: 'sendgrid' | 'resend'
+  error_message?: string
+}
+
 let supabaseInstance: SupabaseClient | null = null
 
 export function getSupabaseClient(): SupabaseClient {
@@ -68,6 +75,15 @@ export async function getActiveSubscribers(): Promise<Subscriber[]> {
     .eq('active', true)
   if (error) throw new Error(`DB error fetching subscribers: ${error.message}`)
   return data ?? []
+}
+
+export async function logEmailResult(log: EmailLog): Promise<void> {
+  try {
+    const supabase = getSupabaseClient()
+    await supabase.from('email_logs').insert(log)
+  } catch (err) {
+    console.error(`[email-log] Failed to log delivery: ${(err as Error).message}`)
+  }
 }
 
 export async function addSubscriber(email: string): Promise<void> {

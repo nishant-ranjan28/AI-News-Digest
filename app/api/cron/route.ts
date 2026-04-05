@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { fetchAINews } from '@/lib/tavily'
+
+export const maxDuration = 60
 import { summarizeArticle } from '@/lib/summarize'
 import { articleExists, saveArticle, getArticlesByDate, getActiveSubscribers } from '@/lib/db'
 import { sendDigestEmail } from '@/lib/email'
