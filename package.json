@@ -15,7 +15,7 @@
     "@sendgrid/mail": "^8.1.6",
     "@supabase/supabase-js": "^2.99.0",
     "groq-sdk": "^1.1.0",
-    "next": "16.1.7",
+    "next": "16.2.3",
     "openai": "^6.27.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
