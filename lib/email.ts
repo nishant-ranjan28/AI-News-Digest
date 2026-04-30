@@ -1,6 +1,6 @@
 import sgMail from '@sendgrid/mail'
 import { Resend } from 'resend'
-import { Article } from './db'
+import { Article, EmailLog } from './db'
 import { logEmailResult } from './db'
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -55,6 +55,44 @@ function buildEmailHtml(articles: Article[], date: string): string {
 }
 
 type SendResult = { success: boolean; error?: string }
+type Provider = EmailLog['provider']
+type SendFn = (to: string, from: string, subject: string, html: string) => Promise<SendResult>
+
+async function sendViaBrevo(
+  to: string,
+  from: string,
+  subject: string,
+  html: string
+): Promise<SendResult> {
+  try {
+    const apiKey = process.env.BREVO_API_KEY
+    if (!apiKey) return { success: false, error: 'Missing BREVO_API_KEY' }
+
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'content-type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { email: from, name: 'AI News Digest' },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.text()
+      return { success: false, error: `Brevo ${res.status}: ${body.slice(0, 200)}` }
+    }
+    return { success: true }
+  } catch (err) {
+    const message = (err as Error).message?.slice(0, 200) ?? 'Unknown Brevo error'
+    return { success: false, error: message }
+  }
+}
 
 async function sendViaSendGrid(
   to: string,
@@ -63,6 +101,9 @@ async function sendViaSendGrid(
   html: string
 ): Promise<SendResult> {
   try {
+    const apiKey = process.env.SENDGRID_API_KEY
+    if (!apiKey) return { success: false, error: 'Missing SENDGRID_API_KEY' }
+    sgMail.setApiKey(apiKey)
     await sgMail.send({ to, from, subject, html })
     return { success: true }
   } catch (err) {
@@ -73,6 +114,7 @@ async function sendViaSendGrid(
 
 async function sendViaResend(
   to: string,
+  from: string,
   subject: string,
   html: string
 ): Promise<SendResult> {
@@ -82,7 +124,7 @@ async function sendViaResend(
 
     const resend = new Resend(apiKey)
     const { error } = await resend.emails.send({
-      from: 'AI News Digest <onboarding@resend.dev>',
+      from: `AI News Digest <${from}>`,
       to,
       subject,
       html,
@@ -95,19 +137,42 @@ async function sendViaResend(
   }
 }
 
+async function runPhase(
+  emails: string[],
+  provider: Provider,
+  sendFn: SendFn,
+  from: string,
+  subject: string,
+  html: string
+): Promise<string[]> {
+  const failed: string[] = []
+  for (const email of emails) {
+    const result = await sendFn(email, from, subject, html)
+    if (result.success) {
+      console.log(`[email] ${provider} sent to ${email}`)
+      await logEmailResult({ recipient: email, status: 'sent', provider })
+    } else {
+      console.error(`[email] ${provider} failed for ${email}: ${result.error}`)
+      await logEmailResult({
+        recipient: email,
+        status: 'failed',
+        provider,
+        error_message: result.error,
+      })
+      failed.push(email)
+    }
+  }
+  return failed
+}
+
 export async function sendDigestEmail(
   articles: Article[],
   subscriberEmails: string[]
 ): Promise<void> {
   if (subscriberEmails.length === 0) return
 
-  const sendgridKey = process.env.SENDGRID_API_KEY
-  if (!sendgridKey) throw new Error('Missing SENDGRID_API_KEY')
-
   const senderEmail = process.env.SENDER_EMAIL
   if (!senderEmail) throw new Error('Missing SENDER_EMAIL')
-
-  sgMail.setApiKey(sendgridKey)
 
   const date = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -115,39 +180,21 @@ export async function sendDigestEmail(
   const subject = `AI News Digest — ${date}`
   const html = buildEmailHtml(articles, date)
 
-  const failedEmails: string[] = []
+  const chain: { provider: Provider; sendFn: SendFn; enabled: boolean }[] = [
+    { provider: 'brevo', sendFn: sendViaBrevo, enabled: !!process.env.BREVO_API_KEY },
+    { provider: 'sendgrid', sendFn: sendViaSendGrid, enabled: !!process.env.SENDGRID_API_KEY },
+    { provider: 'resend', sendFn: sendViaResend, enabled: !!process.env.RESEND_API_KEY },
+  ]
 
-  // Phase 1: Send via SendGrid
-  for (const email of subscriberEmails) {
-    const result = await sendViaSendGrid(email, senderEmail, subject, html)
-    if (result.success) {
-      console.log(`[email] SendGrid sent to ${email}`)
-      await logEmailResult({ recipient: email, status: 'sent', provider: 'sendgrid' })
-    } else {
-      console.error(`[email] SendGrid failed for ${email}: ${result.error}`)
-      await logEmailResult({
-        recipient: email, status: 'failed', provider: 'sendgrid',
-        error_message: result.error,
-      })
-      failedEmails.push(email)
-    }
-  }
+  const active = chain.filter((p) => p.enabled)
+  if (active.length === 0) throw new Error('No email provider configured (set BREVO_API_KEY, SENDGRID_API_KEY, or RESEND_API_KEY)')
 
-  // Phase 2: Retry failures via Resend
-  if (failedEmails.length > 0) {
-    console.log(`[email] Retrying ${failedEmails.length} failed email(s) via Resend`)
-    for (const email of failedEmails) {
-      const result = await sendViaResend(email, subject, html)
-      if (result.success) {
-        console.log(`[email] Resend sent to ${email}`)
-        await logEmailResult({ recipient: email, status: 'sent', provider: 'resend' })
-      } else {
-        console.error(`[email] Resend also failed for ${email}: ${result.error}`)
-        await logEmailResult({
-          recipient: email, status: 'failed', provider: 'resend',
-          error_message: result.error,
-        })
-      }
+  let pending = subscriberEmails
+  for (const { provider, sendFn } of active) {
+    if (pending.length === 0) break
+    pending = await runPhase(pending, provider, sendFn, senderEmail, subject, html)
+    if (pending.length > 0) {
+      console.log(`[email] ${pending.length} email(s) failed via ${provider}, retrying with next provider`)
     }
   }
 }

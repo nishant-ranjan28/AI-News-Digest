@@ -22,7 +22,7 @@ export type Subscriber = {
 export type EmailLog = {
   recipient: string
   status: 'sent' | 'failed'
-  provider: 'sendgrid' | 'resend'
+  provider: 'brevo' | 'sendgrid' | 'resend'
   error_message?: string
 }
 
