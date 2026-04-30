@@ -38,6 +38,7 @@ describe('sendDigestEmail', () => {
       },
     ],
     tool: null,
+    quick_takeaway: 'Cheap inference is the new moat.',
     closing: { kind: 'statement', text: 'The race is no longer about smarts; it is about cost.' },
   }
 

@@ -80,10 +80,18 @@ function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
     </div>`
     : ''
 
-  const closingBlock = `
-    <div style="border:1px solid #ddd6fe;background:#f5f3ff;border-radius:10px;padding:18px 20px;margin-top:${composed.tool ? '12px' : '24px'};margin-bottom:24px;">
+  const takeawayBlock = `
+    <div style="border:1px solid #ddd6fe;background:#f5f3ff;border-radius:10px;padding:18px 20px;margin-top:${composed.tool ? '12px' : '24px'};margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:700;color:#5b21b6;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">💡 Quick takeaway</div>
       <p style="margin:0;color:#4c1d95;font-size:15px;line-height:1.6;font-weight:500;">
-        ${composed.closing.kind === 'question' ? '❓' : '💡'} ${escapeHtml(composed.closing.text)}
+        👉 ${escapeHtml(composed.quick_takeaway)}
+      </p>
+    </div>`
+
+  const closingBlock = `
+    <div style="border:1px solid #fcd5ce;background:#fff5f0;border-radius:10px;padding:18px 20px;margin-bottom:24px;">
+      <p style="margin:0;color:#7c2d12;font-size:15px;line-height:1.6;font-weight:500;">
+        ${composed.closing.kind === 'question' ? '❓' : '✨'} ${escapeHtml(composed.closing.text)}
       </p>
     </div>`
 
@@ -106,6 +114,7 @@ function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
       ${signalBlock}
       ${storyBlocks}
       ${toolBlock}
+      ${takeawayBlock}
       ${closingBlock}
       ${moreLink}
       <p style="text-align:center;color:#9ca3af;font-size:11px;margin:24px 0 0;">

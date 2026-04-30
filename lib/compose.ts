@@ -25,6 +25,7 @@ export type ComposedNewsletter = {
   signal: string
   stories: ComposedStory[]
   tool: ComposedTool | null
+  quick_takeaway: string
   closing: ComposedClosing
 }
 
@@ -125,6 +126,7 @@ Respond ONLY with a valid JSON object — no markdown, no explanation:
     }
   ],
   "tool": null,
+  "quick_takeaway": "<exactly ONE short sentence (8-18 words). Bold, memorable, screenshot-worthy. A stance with teeth, distinct from signal and closing>",
   "closing": {
     "kind": "question",
     "text": "<a real question worth answering, OR a bold closing statement (set kind to 'statement')>"
@@ -148,6 +150,7 @@ function parse(text: string): ComposedNewsletter {
     typeof parsed.signal !== 'string' ||
     !Array.isArray(parsed.stories) ||
     parsed.stories.length === 0 ||
+    typeof parsed.quick_takeaway !== 'string' ||
     !parsed.closing ||
     typeof parsed.closing.text !== 'string' ||
     (parsed.closing.kind !== 'question' && parsed.closing.kind !== 'statement')
