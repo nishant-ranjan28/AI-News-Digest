@@ -1,10 +1,17 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
+export type ArticleContent = {
+  headline: string
+  what_happened: string
+  why_it_matters: string
+}
+
 export type Article = {
   id?: string
   title: string
   url: string
   summary?: string
+  content?: ArticleContent
   category?: string
   importance_score?: number
   source?: string
@@ -51,7 +58,11 @@ export async function articleExists(url: string): Promise<boolean> {
 
 export async function saveArticle(article: Omit<Article, 'id' | 'created_at'>): Promise<void> {
   const supabase = getSupabaseClient()
-  const { error } = await supabase.from('articles').insert(article)
+  const row = {
+    ...article,
+    summary: article.summary ?? article.content?.what_happened ?? null,
+  }
+  const { error } = await supabase.from('articles').insert(row)
   if (error) throw new Error(`DB error saving article: ${error.message}`)
 }
 

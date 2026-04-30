@@ -10,6 +10,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function ArticleCard({ article }: { article: Article }) {
   const badgeClass = CATEGORY_COLORS[article.category ?? ''] ?? 'bg-gray-100 text-gray-800'
+  const headline = article.content?.headline ?? article.title
+  const whatHappened = article.content?.what_happened ?? article.summary
+  const whyItMatters = article.content?.why_it_matters
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -24,11 +27,18 @@ export default function ArticleCard({ article }: { article: Article }) {
           </span>
         )}
       </div>
-      <h2 className="text-lg font-semibold text-gray-900 mb-2 leading-snug">
-        {article.title}
+      <h2 className="text-lg font-semibold text-gray-900 mb-3 leading-snug">
+        {headline}
       </h2>
-      {article.summary && (
-        <p className="text-sm text-gray-600 leading-relaxed mb-4">{article.summary}</p>
+      {whatHappened && (
+        <p className="text-sm text-gray-700 leading-relaxed mb-2">
+          <span className="font-semibold text-gray-900">What happened:</span> {whatHappened}
+        </p>
+      )}
+      {whyItMatters && (
+        <p className="text-sm text-gray-600 leading-relaxed mb-4">
+          <span className="font-semibold text-gray-900">Why it matters:</span> {whyItMatters}
+        </p>
       )}
       <a
         href={article.url}

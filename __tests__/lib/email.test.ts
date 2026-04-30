@@ -1,5 +1,5 @@
 import { sendDigestEmail } from '@/lib/email'
-import { Article } from '@/lib/db'
+import { ComposedNewsletter } from '@/lib/compose'
 
 const mockSend = jest.fn()
 const mockSetApiKey = jest.fn()
@@ -26,17 +26,20 @@ jest.mock('@/lib/db', () => ({
 }))
 
 describe('sendDigestEmail', () => {
-  const mockArticles: Article[] = [
-    {
-      title: 'GPT-5 Released',
-      url: 'https://example.com/gpt5',
-      summary: 'OpenAI released GPT-5 with massive improvements.',
-      category: 'LLM',
-      importance_score: 9,
-      source: 'example.com',
-      published_date: '2026-03-11',
-    },
-  ]
+  const mockComposed: ComposedNewsletter = {
+    theme: 'AI competition heats up',
+    signal: 'Big Tech is racing to ship cheaper, faster models.',
+    stories: [
+      {
+        role: 'anchor',
+        headline: 'GPT-5 lands with sharper reasoning',
+        body: 'OpenAI released GPT-5 today with major reasoning gains.\nIt sets a new bar for production LLMs.',
+        url: 'https://example.com/gpt5',
+      },
+    ],
+    tool: null,
+    closing: { kind: 'statement', text: 'The race is no longer about smarts; it is about cost.' },
+  }
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -49,7 +52,7 @@ describe('sendDigestEmail', () => {
   })
 
   it('sends via SendGrid and logs success', async () => {
-    await sendDigestEmail(mockArticles, ['user@test.com'])
+    await sendDigestEmail(mockComposed, ['user@test.com'])
 
     expect(mockSetApiKey).toHaveBeenCalledWith('test-sendgrid-key')
     expect(mockSend).toHaveBeenCalledTimes(1)
@@ -64,7 +67,7 @@ describe('sendDigestEmail', () => {
   it('falls back to Resend on SendGrid failure', async () => {
     mockSend.mockRejectedValue(new Error('SendGrid down'))
 
-    await sendDigestEmail(mockArticles, ['user@test.com'])
+    await sendDigestEmail(mockComposed, ['user@test.com'])
 
     expect(mockResendSend).toHaveBeenCalledTimes(1)
     expect(mockLogEmailResult).toHaveBeenCalledWith(
@@ -80,7 +83,7 @@ describe('sendDigestEmail', () => {
       .mockResolvedValueOnce([{ statusCode: 202 }])
       .mockRejectedValueOnce(new Error('SendGrid down'))
 
-    await sendDigestEmail(mockArticles, ['ok@test.com', 'fail@test.com'])
+    await sendDigestEmail(mockComposed, ['ok@test.com', 'fail@test.com'])
 
     expect(mockResendSend).toHaveBeenCalledTimes(1)
     expect(mockResendSend).toHaveBeenCalledWith(
@@ -90,16 +93,16 @@ describe('sendDigestEmail', () => {
 
   it('throws when SENDGRID_API_KEY is missing', async () => {
     delete process.env.SENDGRID_API_KEY
-    await expect(sendDigestEmail(mockArticles, ['user@test.com'])).rejects.toThrow('Missing SENDGRID_API_KEY')
+    await expect(sendDigestEmail(mockComposed, ['user@test.com'])).rejects.toThrow('Missing SENDGRID_API_KEY')
   })
 
   it('throws when SENDER_EMAIL is missing', async () => {
     delete process.env.SENDER_EMAIL
-    await expect(sendDigestEmail(mockArticles, ['user@test.com'])).rejects.toThrow('Missing SENDER_EMAIL')
+    await expect(sendDigestEmail(mockComposed, ['user@test.com'])).rejects.toThrow('Missing SENDER_EMAIL')
   })
 
   it('does nothing when subscriber list is empty', async () => {
-    await sendDigestEmail(mockArticles, [])
+    await sendDigestEmail(mockComposed, [])
     expect(mockSend).not.toHaveBeenCalled()
   })
 
@@ -107,7 +110,7 @@ describe('sendDigestEmail', () => {
     mockSend.mockRejectedValue(new Error('SendGrid down'))
     mockResendSend.mockResolvedValue({ data: null, error: { message: 'Resend down' } })
 
-    await sendDigestEmail(mockArticles, ['user@test.com'])
+    await sendDigestEmail(mockComposed, ['user@test.com'])
 
     expect(mockLogEmailResult).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'failed', provider: 'sendgrid' })

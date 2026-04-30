@@ -4,7 +4,8 @@ import { fetchAINews } from '@/lib/tavily'
 
 export const maxDuration = 60
 import { summarizeArticle } from '@/lib/summarize'
-import { articleExists, saveArticle, getArticlesByDate, getActiveSubscribers } from '@/lib/db'
+import { composeNewsletter } from '@/lib/compose'
+import { articleExists, saveArticle, getActiveSubscribers } from '@/lib/db'
 import { sendDigestEmail } from '@/lib/email'
 
 function sleep(ms: number) {
@@ -41,7 +42,7 @@ async function runPipeline() {
         await saveArticle({
           title: article.title,
           url: article.url,
-          summary: result.summary,
+          content: result.content,
           category: result.category,
           importance_score: result.importance_score,
           source: article.source,
@@ -56,21 +57,25 @@ async function runPipeline() {
 
     step(`Processing done — saved: ${saved}, skipped: ${skipped}`)
 
-    const today = new Date().toISOString().split('T')[0]
-    step(`Fetching today's articles (${today})...`)
-    const todayArticles = await getArticlesByDate(today)
-    const top10 = todayArticles.slice(0, 10)
-    step(`Found ${todayArticles.length} articles, using top ${top10.length}`)
-
     step('Fetching subscribers...')
     const subscribers = await getActiveSubscribers()
     const emails = subscribers.map((s) => s.email)
     step(`Found ${emails.length} subscriber(s)`)
 
-    if (emails.length > 0 && top10.length > 0) {
-      step('Sending digest emails...')
-      await sendDigestEmail(top10, emails)
-      step('Emails sent')
+    if (emails.length > 0 && articles.length > 0) {
+      step(`Composing newsletter from ${articles.length} fresh articles...`)
+      const composed = await composeNewsletter(
+        articles.map((a) => ({ title: a.title, url: a.url, content: a.content, source: a.source }))
+      )
+
+      if (!composed) {
+        step('Composition returned null — skipping email send')
+      } else {
+        step(`Theme: ${composed.theme}`)
+        step(`Sending digest emails...`)
+        await sendDigestEmail(composed, emails)
+        step('Emails sent')
+      }
     } else {
       step('Skipped email — no subscribers or no articles')
     }

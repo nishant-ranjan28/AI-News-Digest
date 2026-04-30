@@ -1,13 +1,5 @@
 import { summarizeArticle, SummarizeResult } from '@/lib/summarize'
 
-jest.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
-    getGenerativeModel: jest.fn().mockReturnValue({
-      generateContent: jest.fn(),
-    }),
-  })),
-}))
-
 jest.mock('groq-sdk', () => {
   return jest.fn().mockImplementation(() => ({
     chat: {
@@ -28,7 +20,6 @@ jest.mock('openai', () => {
   }))
 })
 
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import Groq from 'groq-sdk'
 import OpenAI from 'openai'
 
@@ -39,14 +30,25 @@ describe('summarizeArticle', () => {
   }
 
   const validResult: SummarizeResult = {
-    summary: 'A 3-4 sentence summary of the article.',
+    content: {
+      headline: 'GPT-5 lands with sharper reasoning',
+      what_happened: 'OpenAI released GPT-5 today with major reasoning gains.',
+      why_it_matters: 'Sets a new bar for production LLMs and forces open-source to catch up fast.',
+    },
     category: 'LLM',
     importance_score: 9,
   }
 
+  const validRawResponse = JSON.stringify({
+    headline: validResult.content.headline,
+    what_happened: validResult.content.what_happened,
+    why_it_matters: validResult.content.why_it_matters,
+    category: validResult.category,
+    importance_score: validResult.importance_score,
+  })
+
   beforeEach(() => {
     jest.clearAllMocks()
-    process.env.GEMINI_API_KEY = 'test-gemini-key'
     process.env.GROQ_API_KEY = 'test-groq-key'
     process.env.OPENROUTER_API_KEY = 'test-openrouter-key'
   })
@@ -56,7 +58,7 @@ describe('summarizeArticle', () => {
       chat: {
         completions: {
           create: jest.fn().mockResolvedValue({
-            choices: [{ message: { content: JSON.stringify(validResult) } }],
+            choices: [{ message: { content: validRawResponse } }],
           }),
         },
       },
@@ -65,7 +67,7 @@ describe('summarizeArticle', () => {
     const result = await summarizeArticle(mockArticle)
     expect(result.category).toBe('LLM')
     expect(result.importance_score).toBe(9)
-    expect(result.summary).toBeDefined()
+    expect(result.content.headline).toBeDefined()
   })
 
   it('falls back to OpenRouter when Groq fails', async () => {
@@ -76,43 +78,19 @@ describe('summarizeArticle', () => {
       chat: {
         completions: {
           create: jest.fn().mockResolvedValue({
-            choices: [{ message: { content: JSON.stringify(validResult) } }],
+            choices: [{ message: { content: validRawResponse } }],
           }),
         },
       },
     }))
 
     const result = await summarizeArticle(mockArticle)
-    expect(result.summary).toBeDefined()
-  })
-
-  it('falls back to Gemini when Groq and OpenRouter fail', async () => {
-    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
-      chat: { completions: { create: jest.fn().mockRejectedValue(new Error('fail')) } },
-    }))
-    ;(OpenAI as unknown as jest.Mock).mockImplementation(() => ({
-      chat: { completions: { create: jest.fn().mockRejectedValue(new Error('fail')) } },
-    }))
-    ;(GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
-      getGenerativeModel: jest.fn().mockReturnValue({
-        generateContent: jest.fn().mockResolvedValue({
-          response: { text: () => JSON.stringify(validResult) },
-        }),
-      }),
-    }))
-
-    const result = await summarizeArticle(mockArticle)
-    expect(result.summary).toBeDefined()
+    expect(result.content.headline).toBeDefined()
   })
 
   it('throws when all providers fail', async () => {
     ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
       chat: { completions: { create: jest.fn().mockRejectedValue(new Error('fail')) } },
-    }))
-    ;(GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
-      getGenerativeModel: jest.fn().mockReturnValue({
-        generateContent: jest.fn().mockRejectedValue(new Error('fail')),
-      }),
     }))
     ;(OpenAI as unknown as jest.Mock).mockImplementation(() => ({
       chat: { completions: { create: jest.fn().mockRejectedValue(new Error('fail')) } },

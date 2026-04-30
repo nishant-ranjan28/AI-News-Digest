@@ -3,6 +3,7 @@ create table articles (
   title text not null,
   url text unique not null,
   summary text,
+  content jsonb,
   category text,
   importance_score int,
   source text,
