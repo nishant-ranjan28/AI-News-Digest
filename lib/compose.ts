@@ -6,7 +6,13 @@ export type ComposedStory = {
   headline: string
   body: string
   url: string
+  read_time_minutes: number
   hot_take?: string
+}
+
+export type SubjectTeaser = {
+  text: string
+  emoji: string
 }
 
 export type ComposedTool = {
@@ -21,10 +27,11 @@ export type ComposedClosing = {
 }
 
 export type ComposedNewsletter = {
+  subject_teasers: SubjectTeaser[]
   theme: string
   signal: string
   stories: ComposedStory[]
-  tool: ComposedTool | null
+  tool: ComposedTool
   quick_takeaway: string
   closing: ComposedClosing
 }
@@ -56,23 +63,27 @@ Every line must answer "why should I care?" in under 5 seconds. If it doesn't, c
 
 1. PICK ONE THEME first. Examples: "Competition is heating up", "AI is becoming trustworthy", "Money is moving to infra". This theme anchors everything.
 
-2. SELECT EXACTLY 3 STORIES from the input — no more, no less:
-   - 1 ANCHOR: the biggest/most important story for the theme
-   - 1 SUPPORTING: reinforces or extends the anchor
-   - 1 CONTRAST: a different angle, a counterpoint, or an outlier worth noting
+2. SELECT EXACTLY 5 STORIES from the input — no more, no less:
+   - 1 ANCHOR: the single biggest/most important story for the theme
+   - 3 SUPPORTING: each reinforces or extends the anchor from a different angle
+   - 1 CONTRAST: a counterpoint, outlier, or "meanwhile in another corner of AI" angle
    Skip anything that doesn't fit. Quality > quantity.
 
 3. WRITE WITH VARIATION — STRUCTURAL RULE BY ROLE:
    - anchor.body: 2-4 lines. Full depth. Lead with the concrete fact, then 1-2 lines of interpretation. Often deserves a hot_take.
-   - supporting.body: 1-2 lines. ONE sharp observation or implication. NOT a summary — a "huh, didn't notice that" angle. No hot_take needed.
+   - supporting.body: 1-2 lines each. ONE sharp observation or implication per story. NOT a summary — a "huh, didn't notice that" angle. The 3 supporting stories MUST themselves vary: one might be a comparison, one a stat-led punch, one a question or "meanwhile..." aside. Do NOT make all three the same shape.
    - contrast.body: 1-2 lines. A punchy take, comparison, or counterpoint. Slightly bold. Often deserves a hot_take.
-   If all 3 stories end up the same length or shape, you have failed. Vary the rhythm.
+   If all 5 stories end up the same length or shape, you have failed. Vary the rhythm.
 
 4. AT LEAST ONE STRONG OPINION. Somewhere in the newsletter (a story body, a hot_take, the signal, or the closing) there MUST be one line where a reader thinks "huh, interesting take" or even disagrees. No opinion = no newsletter.
 
-5. TOOL OF THE DAY IS OPTIONAL. Only include it if a genuinely useful AI tool/product/model surfaces from today's news. If nothing fits, return null. Do not invent or stretch.
+5. TOOL OF THE DAY IS REQUIRED. Always include one. If a useful AI tool/product/model surfaces from today's news, use that. If nothing surfaces, recommend a real, well-known AI tool that thematically fits today (e.g. Cursor when the theme is dev tools, Perplexity for search, Claude/ChatGPT for general LLMs, Gemini, v0, Replit Agent, Suno, Pika, Runway). Never invent fake tools. The reader should be able to actually try it today.
 
-6. CLOSING: end with EITHER a real question to the reader OR a strong statement. Not both. No corporate "thanks for reading" — natural continuation only.
+6. SUBJECT LINE — TLDR-STYLE TEASERS: produce exactly 3 short teasers (one for the anchor, two for the most click-worthy supporting/contrast stories). Each teaser is 4-7 words capturing the news + a relevant emoji. They render as: "Teaser one 💬, Teaser two 📱, Teaser three 🤖". Pick emojis that match the news topic specifically (💬 chat/leaks, 📱 mobile/UI, 🤖 AI tools, 💸 funding, ⚖️ policy/legal, 🧠 research, 📈 metrics, 🔥 hot, 🚀 launches, 🤝 partnerships, 🛠 dev tools). Avoid generic emojis like ✨ or 📰.
+
+7. READ TIME: estimate read_time_minutes per story based on source article length. Rough heuristic: <800 chars = 1, 800-2000 = 2, 2000-4000 = 3, >4000 = 4. Cap at 6.
+
+8. CLOSING: end with EITHER a real question to the reader OR a strong statement. Not both. No corporate "thanks for reading" — natural continuation only.
 
 # BANNED PHRASES (auto-fail if used anywhere)
 "signals a shift", "marks a turning point", "the AI space", "could revolutionize", "game-changer", "paradigm shift", "new era", "the beginning of", "might just be", "redefine the future", "as AI continues", "in the long run", "in the long term", "this could potentially", "vote of confidence", "promising development", "helping to accelerate", "clear signal that", "clear sign that", "clear sign", "remains to be seen", "play out", "stay tuned", "watch this space", "drive growth and innovation", "stay ahead of the curve", "transformative", "robust", "leveraging", "AI wars are escalating", "dominance is under threat", "ultimately decide", "be enough to"
@@ -96,45 +107,44 @@ GOOD closing: a specific question with named actors and a concrete future event,
 - Be specific. Name real products, models, companies, numbers, percentages, dollar amounts.
 - Slightly opinionated. Have a stance. If a smart reader can't disagree with any line, you wrote nothing.
 - No corporate language, no journalist-speak, no hedging, no "could", no "may", no "potentially".
-- VARIATION IS REQUIRED: the 3 stories MUST feel different in shape. If all 3 are the same length and structure, you have failed. Mix it up — one with What/Why depth, one with a single sharp insight, one with a punchy take or comparison.
-- hot_take is OPTIONAL but powerful. Only add it where you have a real opinion worth defending. No platitudes.
+- VARIATION IS REQUIRED: the 5 stories MUST feel different in shape. If they're all the same length and structure, you have failed.
+- hot_take is OPTIONAL per story but powerful. Only add it where you have a real opinion worth defending. No platitudes.
 
 Respond ONLY with a valid JSON object — no markdown, no explanation:
 
 {
+  "subject_teasers": [
+    { "text": "<4-7 words from anchor>", "emoji": "<topic-relevant>" },
+    { "text": "<4-7 words from supporting>", "emoji": "<topic-relevant>" },
+    { "text": "<4-7 words from contrast or another supporting>", "emoji": "<topic-relevant>" }
+  ],
   "theme": "<3-6 word phrase that names today's angle>",
   "signal": "<exactly 1 sentence (15-25 words) framing the theme; a perspective, not a recap>",
   "stories": [
     {
       "role": "anchor",
       "headline": "<simple, engaging — max 80 chars>",
-      "body": "<1-3 short lines. Mix factual + interpretive. Concrete and opinionated>",
+      "body": "<2-4 short lines. Mix factual + interpretive. Concrete and opinionated>",
       "url": "<exact URL of the chosen article from input>",
+      "read_time_minutes": <integer 1-6>,
       "hot_take": "<optional: one sharp opinion line. Omit field if not warranted>"
     },
-    {
-      "role": "supporting",
-      "headline": "...",
-      "body": "...",
-      "url": "..."
-    },
-    {
-      "role": "contrast",
-      "headline": "...",
-      "body": "...",
-      "url": "..."
-    }
+    { "role": "supporting", "headline": "...", "body": "...", "url": "...", "read_time_minutes": 1 },
+    { "role": "supporting", "headline": "...", "body": "...", "url": "...", "read_time_minutes": 2 },
+    { "role": "supporting", "headline": "...", "body": "...", "url": "...", "read_time_minutes": 1 },
+    { "role": "contrast", "headline": "...", "body": "...", "url": "...", "read_time_minutes": 2 }
   ],
-  "tool": null,
+  "tool": {
+    "name": "<a real, well-known AI tool the reader can try today (e.g. Cursor, Claude, ChatGPT, Perplexity, v0, Replit Agent, Suno, Pika, Runway)>",
+    "what": "<exactly 1 short sentence — concrete capability, no marketing>",
+    "best_for": "<exactly 1 short sentence naming the actual user or use case>"
+  },
   "quick_takeaway": "<exactly ONE short sentence (8-18 words). Bold, memorable, screenshot-worthy. A stance with teeth, distinct from signal and closing>",
   "closing": {
     "kind": "question",
     "text": "<a real question worth answering, OR a bold closing statement (set kind to 'statement')>"
   }
 }
-
-If a useful tool surfaces, replace tool null with:
-{ "name": "<real product like ChatGPT, Claude, Cursor, Perplexity, Gemini>", "what": "<1 sentence, concrete>", "best_for": "<1 sentence naming the actual user>" }
 
 # INPUT ARTICLES
 ${items}
@@ -146,6 +156,8 @@ function parse(text: string): ComposedNewsletter {
   const parsed = JSON.parse(cleaned)
 
   if (
+    !Array.isArray(parsed.subject_teasers) ||
+    parsed.subject_teasers.length === 0 ||
     typeof parsed.theme !== 'string' ||
     typeof parsed.signal !== 'string' ||
     !Array.isArray(parsed.stories) ||
@@ -158,26 +170,31 @@ function parse(text: string): ComposedNewsletter {
     throw new Error('Invalid compose response shape')
   }
 
+  for (const t of parsed.subject_teasers) {
+    if (typeof t.text !== 'string' || typeof t.emoji !== 'string') {
+      throw new Error('Invalid subject_teaser shape')
+    }
+  }
+
   for (const s of parsed.stories) {
     if (
       typeof s.headline !== 'string' ||
       typeof s.body !== 'string' ||
       typeof s.url !== 'string' ||
+      typeof s.read_time_minutes !== 'number' ||
       (s.role !== 'anchor' && s.role !== 'supporting' && s.role !== 'contrast')
     ) {
       throw new Error('Invalid story shape')
     }
   }
 
-  if (parsed.tool !== null) {
-    if (
-      !parsed.tool ||
-      typeof parsed.tool.name !== 'string' ||
-      typeof parsed.tool.what !== 'string' ||
-      typeof parsed.tool.best_for !== 'string'
-    ) {
-      throw new Error('Invalid tool shape')
-    }
+  if (
+    !parsed.tool ||
+    typeof parsed.tool.name !== 'string' ||
+    typeof parsed.tool.what !== 'string' ||
+    typeof parsed.tool.best_for !== 'string'
+  ) {
+    throw new Error('Invalid tool shape — tool is required')
   }
 
   return parsed as ComposedNewsletter

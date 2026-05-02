@@ -27,6 +27,11 @@ jest.mock('@/lib/db', () => ({
 
 describe('sendDigestEmail', () => {
   const mockComposed: ComposedNewsletter = {
+    subject_teasers: [
+      { text: 'GPT-5 lands with reasoning gains', emoji: '🧠' },
+      { text: 'Anthropic adds team plan', emoji: '🤝' },
+      { text: 'EU drops AI Act amendment', emoji: '⚖️' },
+    ],
     theme: 'AI competition heats up',
     signal: 'Big Tech is racing to ship cheaper, faster models.',
     stories: [
@@ -35,9 +40,10 @@ describe('sendDigestEmail', () => {
         headline: 'GPT-5 lands with sharper reasoning',
         body: 'OpenAI released GPT-5 today with major reasoning gains.\nIt sets a new bar for production LLMs.',
         url: 'https://example.com/gpt5',
+        read_time_minutes: 3,
       },
     ],
-    tool: null,
+    tool: { name: 'Cursor', what: 'AI-native code editor.', best_for: 'Devs who hate boilerplate.' },
     quick_takeaway: 'Cheap inference is the new moat.',
     closing: { kind: 'statement', text: 'The race is no longer about smarts; it is about cost.' },
   }
