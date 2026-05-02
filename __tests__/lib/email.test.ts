@@ -43,7 +43,12 @@ describe('sendDigestEmail', () => {
         read_time_minutes: 3,
       },
     ],
-    tool: { name: 'Cursor', what: 'AI-native code editor.', best_for: 'Devs who hate boilerplate.' },
+    tool: {
+      name: 'Cursor',
+      what: 'AI-native code editor.',
+      best_for: 'Devs who hate boilerplate.',
+      why_now: 'Cursor just shipped Composer mode for multi-file edits.',
+    },
     quick_takeaway: 'Cheap inference is the new moat.',
     closing: { kind: 'statement', text: 'The race is no longer about smarts; it is about cost.' },
   }

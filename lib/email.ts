@@ -87,8 +87,11 @@ function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
     <p style="margin:0 0 6px;color:${BODY_TEXT};font-size:14px;line-height:1.6;">
       <strong style="color:${TEXT};">What it does:</strong> ${escapeHtml(composed.tool.what)}
     </p>
-    <p style="margin:0;color:${BODY_TEXT};font-size:14px;line-height:1.6;">
+    <p style="margin:0 0 6px;color:${BODY_TEXT};font-size:14px;line-height:1.6;">
       <strong style="color:${TEXT};">Best for:</strong> ${escapeHtml(composed.tool.best_for)}
+    </p>
+    <p style="margin:0;color:${ACCENT};font-size:14px;line-height:1.6;font-style:italic;">
+      <strong style="color:${TEXT};font-style:normal;">Why now:</strong> ${escapeHtml(composed.tool.why_now)}
     </p>`
 
   const takeawayBlock = `

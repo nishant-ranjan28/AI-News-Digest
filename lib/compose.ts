@@ -19,6 +19,7 @@ export type ComposedTool = {
   name: string
   what: string
   best_for: string
+  why_now: string
 }
 
 export type ComposedClosing = {
@@ -77,7 +78,14 @@ Every line must answer "why should I care?" in under 5 seconds. If it doesn't, c
 
 4. AT LEAST ONE STRONG OPINION. Somewhere in the newsletter (a story body, a hot_take, the signal, or the closing) there MUST be one line where a reader thinks "huh, interesting take" or even disagrees. No opinion = no newsletter.
 
-5. TOOL OF THE DAY IS REQUIRED. Always include one. If a useful AI tool/product/model surfaces from today's news, use that. If nothing surfaces, recommend a real, well-known AI tool that thematically fits today (e.g. Cursor when the theme is dev tools, Perplexity for search, Claude/ChatGPT for general LLMs, Gemini, v0, Replit Agent, Suno, Pika, Runway). Never invent fake tools. The reader should be able to actually try it today.
+5. TOOL OF THE DAY IS REQUIRED — and it must feel WORTH FEATURING. Strict rules:
+   - PRIORITIZE NEW, NOTABLE, OR LESSER-KNOWN tools. The reader follows AI news; recommending ChatGPT or Google Search is wasted space.
+   - First, look for a product, model, or feature mentioned IN today's articles — that's the strongest signal it's newsworthy this week.
+   - If nothing in the news fits, pick a recently-launched or rising AI product the reader probably hasn't tried yet.
+   - GOOD examples (2025-26 era — newer / sharper picks): Cursor, Cline, Aider, Bolt.new, lovable.dev, v0, Replit Agent, Devin, Claude Code, Computer Use, OpenAI Operator, Granola, Wispr Flow, Browser Use, Suno, Pika, Runway Gen-3, Krea, Mistral Le Chat, DeepSeek, Perplexity Comet, SearchGPT, Notion AI, Cline, Continue.dev, Phind.
+   - AVOID as defaults (only pick if they had a MAJOR release THIS WEEK): ChatGPT, Claude (the bare chat product), Perplexity (the bare search product), Gemini (the bare chat product), Microsoft Copilot.
+   - Never invent fake tools. The product must really exist and the reader must be able to try it today.
+   - The "why_now" field is your hook — what makes THIS tool worth attention RIGHT NOW (a recent feature, a model upgrade, a use case that just clicked, growing traction). If you can't write a compelling why_now, pick a different tool.
 
 6. SUBJECT LINE — TLDR-STYLE TEASERS: produce exactly 3 short teasers (one for the anchor, two for the most click-worthy supporting/contrast stories). Each teaser is 4-7 words capturing the news + a relevant emoji. They render as: "Teaser one 💬, Teaser two 📱, Teaser three 🤖". Pick emojis that match the news topic specifically (💬 chat/leaks, 📱 mobile/UI, 🤖 AI tools, 💸 funding, ⚖️ policy/legal, 🧠 research, 📈 metrics, 🔥 hot, 🚀 launches, 🤝 partnerships, 🛠 dev tools). Avoid generic emojis like ✨ or 📰.
 
@@ -135,9 +143,10 @@ Respond ONLY with a valid JSON object — no markdown, no explanation:
     { "role": "contrast", "headline": "...", "body": "...", "url": "...", "read_time_minutes": 2 }
   ],
   "tool": {
-    "name": "<a real, well-known AI tool the reader can try today (e.g. Cursor, Claude, ChatGPT, Perplexity, v0, Replit Agent, Suno, Pika, Runway)>",
-    "what": "<exactly 1 short sentence — concrete capability, no marketing>",
-    "best_for": "<exactly 1 short sentence naming the actual user or use case>"
+    "name": "<a real, NEW or notable AI tool/model. Avoid mainstream defaults like ChatGPT/Claude/Perplexity unless they shipped something major this week>",
+    "what": "<exactly 1 short sentence — concrete capability, no marketing words>",
+    "best_for": "<exactly 1 short sentence naming the actual user or use case>",
+    "why_now": "<exactly 1 short sentence — the hook. What makes this tool worth attention THIS WEEK? A recent launch, model upgrade, growing traction, or a use case that just clicked>"
   },
   "quick_takeaway": "<exactly ONE short sentence (8-18 words). Bold, memorable, screenshot-worthy. A stance with teeth, distinct from signal and closing>",
   "closing": {
@@ -192,7 +201,8 @@ function parse(text: string): ComposedNewsletter {
     !parsed.tool ||
     typeof parsed.tool.name !== 'string' ||
     typeof parsed.tool.what !== 'string' ||
-    typeof parsed.tool.best_for !== 'string'
+    typeof parsed.tool.best_for !== 'string' ||
+    typeof parsed.tool.why_now !== 'string'
   ) {
     throw new Error('Invalid tool shape — tool is required')
   }
