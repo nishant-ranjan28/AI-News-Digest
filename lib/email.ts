@@ -5,6 +5,7 @@ import { logEmailResult } from './db'
 import { ComposedNewsletter } from './compose'
 
 const ARCHIVE_URL = 'https://ai.iamnishant.in/archive'
+const SUBSCRIBE_URL = 'https://ai.iamnishant.in/'
 
 function escapeHtml(s: string): string {
   return s
@@ -111,6 +112,32 @@ function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
       <a href="${ARCHIVE_URL}" style="color:${ACCENT};font-weight:600;text-decoration:none;">+ More stories → ai.iamnishant.in/archive</a>
     </p>`
 
+  const shareMailSubject = encodeURIComponent('Thought you might like this AI newsletter')
+  const shareMailBody = encodeURIComponent(
+    `I've been enjoying this daily AI digest — sharp, opinionated, fast to read.\n\nSign up here: ${SUBSCRIBE_URL}`
+  )
+  const shareTweet = encodeURIComponent(
+    'If you follow AI, this daily digest is worth a sub — sharp and opinionated, no fluff.'
+  )
+  const forwardHref = `mailto:?subject=${shareMailSubject}&body=${shareMailBody}`
+  const xHref = `https://twitter.com/intent/tweet?text=${shareTweet}&url=${encodeURIComponent(SUBSCRIBE_URL)}`
+  const linkedInHref = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(SUBSCRIBE_URL)}`
+
+  const shareBlock = `
+    <div style="margin:32px 0 0;padding:18px 20px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;text-align:center;">
+      <p style="margin:0 0 8px;color:${TEXT};font-size:14px;font-weight:600;">Enjoying this? Pass it on.</p>
+      <p style="margin:0 0 12px;color:${MUTED};font-size:13px;line-height:1.6;">
+        Forward to a friend or share with your network — it's the best way to support the newsletter.
+      </p>
+      <p style="margin:0;font-size:13px;line-height:1.8;">
+        <a href="${forwardHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;margin:0 8px;">✉️ Forward</a>
+        <span style="color:#d1d5db;">·</span>
+        <a href="${xHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;margin:0 8px;">Post on X</a>
+        <span style="color:#d1d5db;">·</span>
+        <a href="${linkedInHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;margin:0 8px;">Share on LinkedIn</a>
+      </p>
+    </div>`
+
   return `
   <!DOCTYPE html>
   <html>
@@ -129,6 +156,7 @@ function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
       ${takeawayBlock}
       ${closingBlock}
       ${moreLink}
+      ${shareBlock}
       <p style="text-align:center;color:${MUTED};font-size:11px;margin:32px 0 0;">
         You are receiving this because you subscribed to AI News Digest.
       </p>
