@@ -1,22 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { after } from 'next/server'
-import { fetchAINews } from '@/lib/tavily'
+import { fetchAINews, TavilyArticle } from '@/lib/tavily'
 
 export const maxDuration = 60
+
 import { summarizeArticle } from '@/lib/summarize'
 import { composeNewsletter } from '@/lib/compose'
 import { articleExists, saveArticle, getActiveSubscribers } from '@/lib/db'
 import { sendDigestEmail } from '@/lib/email'
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
+const SUMMARIZE_CONCURRENCY = 5
 
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   const bufA = Buffer.from(a)
   const bufB = Buffer.from(b)
   return require('crypto').timingSafeEqual(bufA, bufB)
+}
+
+async function processArticle(
+  article: TavilyArticle,
+  step: (m: string) => void
+): Promise<'saved' | 'skipped' | 'failed'> {
+  if (await articleExists(article.url)) return 'skipped'
+
+  try {
+    step(`Summarizing: "${article.title.slice(0, 60)}"`)
+    const result = await summarizeArticle({ title: article.title, content: article.content })
+    await saveArticle({
+      title: article.title,
+      url: article.url,
+      content: result.content,
+      category: result.category,
+      importance_score: result.importance_score,
+      source: article.source,
+      published_date: article.published_date,
+    })
+    return 'saved'
+  } catch (err) {
+    step(`Failed article "${article.title.slice(0, 60)}": ${(err as Error).message?.slice(0, 100)}`)
+    return 'failed'
+  }
 }
 
 async function runPipeline() {
@@ -31,31 +54,20 @@ async function runPipeline() {
 
     let saved = 0
     let skipped = 0
+    let failed = 0
 
-    for (const article of articles) {
-      const exists = await articleExists(article.url)
-      if (exists) { skipped++; continue }
-
-      try {
-        step(`Summarizing: "${article.title.slice(0, 60)}"`)
-        const result = await summarizeArticle({ title: article.title, content: article.content })
-        await saveArticle({
-          title: article.title,
-          url: article.url,
-          content: result.content,
-          category: result.category,
-          importance_score: result.importance_score,
-          source: article.source,
-          published_date: article.published_date,
-        })
-        saved++
-        await sleep(500)
-      } catch (err) {
-        step(`Failed article "${article.title.slice(0, 60)}": ${(err as Error).message?.slice(0, 100)}`)
+    for (let i = 0; i < articles.length; i += SUMMARIZE_CONCURRENCY) {
+      const batch = articles.slice(i, i + SUMMARIZE_CONCURRENCY)
+      const results = await Promise.allSettled(batch.map((a) => processArticle(a, step)))
+      for (const r of results) {
+        if (r.status !== 'fulfilled') { failed++; continue }
+        if (r.value === 'saved') saved++
+        else if (r.value === 'skipped') skipped++
+        else failed++
       }
     }
 
-    step(`Processing done — saved: ${saved}, skipped: ${skipped}`)
+    step(`Processing done — saved: ${saved}, skipped: ${skipped}, failed: ${failed}`)
 
     step('Fetching subscribers...')
     const subscribers = await getActiveSubscribers()
@@ -72,7 +84,7 @@ async function runPipeline() {
         step('Composition returned null — skipping email send')
       } else {
         step(`Theme: ${composed.theme}`)
-        step(`Sending digest emails...`)
+        step('Sending digest emails...')
         await sendDigestEmail(composed, emails)
         step('Emails sent')
       }
@@ -95,7 +107,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  after(runPipeline)
+  await runPipeline()
 
-  return NextResponse.json({ success: true, message: 'Pipeline started' })
+  return NextResponse.json({ success: true, message: 'Pipeline complete' })
 }
