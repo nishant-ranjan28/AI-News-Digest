@@ -5,8 +5,15 @@ export const maxDuration = 60
 
 import { summarizeArticle } from '@/lib/summarize'
 import { composeNewsletter } from '@/lib/compose'
-import { articleExists, saveArticle, getActiveSubscribers } from '@/lib/db'
+import {
+  articleExists,
+  saveArticle,
+  getActiveSubscribers,
+  upsertRepurposedPost,
+  saveNewsletterIssue,
+} from '@/lib/db'
 import { sendDigestEmail } from '@/lib/email'
+import { generateAllChannels, buildSlug } from '@/lib/repurpose'
 
 const SUMMARIZE_CONCURRENCY = 5
 
@@ -87,6 +94,50 @@ async function runPipeline() {
         step('Sending digest emails...')
         await sendDigestEmail(composed, emails)
         step('Emails sent')
+
+        // Persist the issue + generate repurposed drafts (must not block/fail the email)
+        const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+        const subject = composed.subject_teasers
+          .map((t) => `${t.text} ${t.emoji}`)
+          .join(', ')
+
+        step('Saving newsletter issue snapshot...')
+        try {
+          await saveNewsletterIssue(today, composed, subject)
+        } catch (e) {
+          step(
+            `Failed to save newsletter_issue: ${(e as Error).message.slice(0, 120)}`
+          )
+        }
+
+        step('Generating repurposed drafts (linkedin, twitter, threads, article)...')
+        try {
+          const results = await generateAllChannels(composed)
+          let drafts = 0
+          for (const { channel, content } of results) {
+            if (!content) {
+              step(`Skipped ${channel} — generation failed`)
+              continue
+            }
+            const slug = channel === 'article' ? buildSlug(composed.theme, today) : null
+            try {
+              await upsertRepurposedPost({
+                issue_date: today,
+                channel,
+                content,
+                status: 'draft',
+                slug,
+                metadata: { chars: content.length, theme: composed.theme },
+              })
+              drafts++
+            } catch (e) {
+              step(`Failed to save ${channel}: ${(e as Error).message.slice(0, 120)}`)
+            }
+          }
+          step(`Saved ${drafts}/4 repurposed drafts`)
+        } catch (e) {
+          step(`Repurposing step failed: ${(e as Error).message.slice(0, 120)}`)
+        }
       }
     } else {
       step('Skipped email — no subscribers or no articles')
