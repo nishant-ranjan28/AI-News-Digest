@@ -1,3 +1,5 @@
+import Groq from 'groq-sdk'
+import OpenAI from 'openai'
 import type { ComposedNewsletter } from './compose'
 import type { RepurposedChannel } from './db'
 
@@ -113,4 +115,69 @@ export function buildSlug(theme: string, isoDate: string): string {
     .slice(0, 60)
     .replace(/^-+|-+$/g, '')
   return cleaned ? `${isoDate}-${cleaned}` : isoDate
+}
+
+async function callGroq(prompt: string): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY
+  if (!apiKey) throw new Error('Missing GROQ_API_KEY')
+  const groq = new Groq({ apiKey })
+  const completion = await groq.chat.completions.create({
+    messages: [{ role: 'user', content: prompt }],
+    model: 'llama-3.3-70b-versatile',
+    temperature: 0.5,
+    top_p: 0.9,
+  })
+  return (completion.choices[0]?.message?.content ?? '').trim()
+}
+
+async function callOpenRouter(prompt: string): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) throw new Error('Missing OPENROUTER_API_KEY')
+  const client = new OpenAI({ apiKey, baseURL: 'https://openrouter.ai/api/v1' })
+  const completion = await client.chat.completions.create({
+    messages: [{ role: 'user', content: prompt }],
+    model: 'meta-llama/llama-3.3-70b-instruct:free',
+    temperature: 0.5,
+    top_p: 0.9,
+  })
+  return (completion.choices[0]?.message?.content ?? '').trim()
+}
+
+function truncateForChannel(text: string, channel: RepurposedChannel): string {
+  const max = CHANNEL_CONFIGS[channel].maxChars
+  if (text.length <= max) return text
+  // For short-form channels, trim at last space within budget; for article, leave alone (LLM should already obey).
+  if (channel === 'article') return text
+  const slice = text.slice(0, max)
+  const lastBreak = Math.max(slice.lastIndexOf('\n'), slice.lastIndexOf(' '))
+  return (lastBreak > max * 0.8 ? slice.slice(0, lastBreak) : slice).trim()
+}
+
+export async function generateForChannel(
+  channel: RepurposedChannel,
+  composed: ComposedNewsletter,
+  siteUrl: string = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ai.iamnishant.in'
+): Promise<string | null> {
+  const cfg = CHANNEL_CONFIGS[channel]
+  const prompt = cfg.buildPrompt(composed, siteUrl)
+  try { return truncateForChannel(await callGroq(prompt), channel) } catch (e) {
+    console.warn(`[repurpose:${channel}] Groq failed:`, (e as Error).message)
+  }
+  try { return truncateForChannel(await callOpenRouter(prompt), channel) } catch (e) {
+    console.warn(`[repurpose:${channel}] OpenRouter failed:`, (e as Error).message)
+    return null
+  }
+}
+
+export type ChannelResult = { channel: RepurposedChannel; content: string | null }
+
+export async function generateAllChannels(
+  composed: ComposedNewsletter,
+  siteUrl?: string
+): Promise<ChannelResult[]> {
+  const channels: RepurposedChannel[] = ['linkedin', 'twitter', 'threads', 'article']
+  // Run in parallel — independent LLM calls
+  return Promise.all(
+    channels.map(async (channel) => ({ channel, content: await generateForChannel(channel, composed, siteUrl) }))
+  )
 }
