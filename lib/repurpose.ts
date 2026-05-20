@@ -111,5 +111,6 @@ export function buildSlug(theme: string, isoDate: string): string {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .slice(0, 60)
-  return `${isoDate}-${cleaned}`
+    .replace(/^-+|-+$/g, '')
+  return cleaned ? `${isoDate}-${cleaned}` : isoDate
 }

@@ -23,4 +23,11 @@ describe('buildSlug', () => {
   it('strips special chars', () => {
     expect(buildSlug("OpenAI's $50B bet?!", '2026-05-20')).toBe('2026-05-20-openai-s-50b-bet')
   })
+  it('does not produce a trailing hyphen when theme is entirely special chars', () => {
+    expect(buildSlug('!!!', '2026-05-20')).toBe('2026-05-20')
+  })
+  it('does not produce a trailing hyphen when truncation lands mid-hyphen-run', () => {
+    const slug = buildSlug('a'.repeat(59) + ' word', '2026-05-20')
+    expect(slug.endsWith('-')).toBe(false)
+  })
 })
