@@ -43,10 +43,12 @@ Good examples:
 - Something interesting is happening in AI.
 
 4. Writing rules:
+- Write like a thoughtful engineer sharing an observation
 - Maximum 8–10 lines total
 - Maximum 1–2 sentences per paragraph
 - Short sentences
 - No corporate language
+- No startup/product jargon
 - No analyst/report tone
 - No generic statements
 - No hashtags
@@ -67,6 +69,11 @@ Banned phrases — never use:
 - next tech giants
 - significant impact
 - unlock potential
+- ecosystem
+- leverage
+- synergy
+- optimize
+- advanced solution
 
 Replace abstract ideas with concrete observations.
 
