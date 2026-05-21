@@ -10,16 +10,23 @@ export type ChannelConfig = {
 }
 
 const LINKEDIN_PROMPT = (c: ComposedNewsletter, siteUrl: string) => `
-Transform the newsletter below into a LinkedIn post.
+Transform this newsletter into a LinkedIn post.
 
 Rules:
-- First line must stop scrolling (a sharp claim, a number, or a named actor — not a question)
-- Focus on ONE insight from the newsletter. Pick the strongest.
-- 6-8 lines maximum, each line a complete thought
-- Short sentences. No hashtags. No emojis except at most one.
-- No corporate / promotional language.
-- End with EXACTLY this line on its own:
+- Start with a contrarian or surprising statement
+- Focus on ONE idea only
+- Create tension or curiosity
+- Do not summarize multiple stories
+- Short lines (1–2 sentences max)
+- Make readers think: "I never thought about that"
+- End with a soft CTA:
 "I break down AI shifts daily → ${siteUrl}"
+
+Avoid:
+- News-report tone
+- Repetition
+- Generic AI statements
+- Corporate language
 
 Output ONLY the post text. No preface, no explanation, no markdown.
 
