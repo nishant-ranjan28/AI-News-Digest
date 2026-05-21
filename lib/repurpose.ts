@@ -10,33 +10,63 @@ export type ChannelConfig = {
 }
 
 const LINKEDIN_PROMPT = (c: ComposedNewsletter, siteUrl: string) => `
-Transform this newsletter into a LinkedIn post.
+Transform the following newsletter/news into ONE engaging LinkedIn post.
 
-Rules:
-- Start with a contrarian or surprising statement (a non-obvious angle, NOT manufactured controversy)
-- Focus on ONE idea only
-- Create curiosity through insight, not drama
-- Do not invent controversy or negative outcomes — work only from facts in the newsletter
-- Do not summarize multiple stories
-- Short lines (1–2 sentences max)
-- Make readers think: "I never thought about that"
-- Write like a thoughtful creator sharing an observation
-- End with a soft CTA:
+GOAL:
+Make readers stop scrolling and think:
+"Hmm, I never thought about it that way."
+
+STRICT RULES:
+
+1. Focus on ONE insight only
+- Ignore secondary stories
+- Do not summarize everything
+
+2. Structure:
+
+Hook (1 line)
+Observation (1–2 short lines)
+Implication (1–2 short lines)
+Soft CTA
+
+3. Hook rules:
+- Must create curiosity or challenge assumptions
+- Avoid clickbait
+- Avoid fear tactics
+- Avoid "What if..."
+- Avoid "recipe for disaster"
+- Avoid exaggerated claims
+
+Good examples:
+- Everyone thinks the AI race is about smarter models.
+- I think people are watching the wrong metric.
+- Something interesting is happening in AI.
+
+4. Writing rules:
+- Maximum 8–10 lines total
+- Maximum 1–2 sentences per paragraph
+- Short sentences
+- No corporate language
+- No analyst/report tone
+- No generic statements
+- No hashtags
+- No emojis
+- Do not repeat ideas
+
+5. Fact rules:
+- Never invent facts
+- Never infer unsupported claims
+- Never change company/product relationships
+
+6. CTA:
+Always end with:
+
 "I break down AI shifts daily → ${siteUrl}"
-
-Avoid:
-- News-report tone
-- Repetition
-- Generic AI statements
-- Corporate language
-- "What if..." openings
-- "recipe for disaster" or similar dramatic phrasing
-- Exaggerated claims
-- Fear-based hooks
 
 Output ONLY the post text. No preface, no explanation, no markdown.
 
-NEWSLETTER:
+NEWS:
+
 Theme: ${c.theme}
 Signal: ${c.signal}
 Stories:
