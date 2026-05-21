@@ -13,12 +13,14 @@ const LINKEDIN_PROMPT = (c: ComposedNewsletter, siteUrl: string) => `
 Transform this newsletter into a LinkedIn post.
 
 Rules:
-- Start with a contrarian or surprising statement
+- Start with a contrarian or surprising statement (a non-obvious angle, NOT manufactured controversy)
 - Focus on ONE idea only
-- Create tension or curiosity
+- Create curiosity through insight, not drama
+- Do not invent controversy or negative outcomes — work only from facts in the newsletter
 - Do not summarize multiple stories
 - Short lines (1–2 sentences max)
 - Make readers think: "I never thought about that"
+- Write like a thoughtful creator sharing an observation
 - End with a soft CTA:
 "I break down AI shifts daily → ${siteUrl}"
 
@@ -27,6 +29,10 @@ Avoid:
 - Repetition
 - Generic AI statements
 - Corporate language
+- "What if..." openings
+- "recipe for disaster" or similar dramatic phrasing
+- Exaggerated claims
+- Fear-based hooks
 
 Output ONLY the post text. No preface, no explanation, no markdown.
 
