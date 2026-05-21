@@ -44,7 +44,7 @@ Good examples:
 
 4. Writing rules:
 - Write like a thoughtful engineer sharing an observation
-- Maximum 8–10 lines total
+- Maximum 8 lines total (hard cap)
 - Maximum 1–2 sentences per paragraph
 - Short sentences
 - No corporate language
@@ -74,6 +74,7 @@ Banned phrases — never use:
 - synergy
 - optimize
 - advanced solution
+- landscape
 
 Replace abstract ideas with concrete observations.
 
@@ -89,9 +90,16 @@ If a sentence sounds like LinkedIn corporate jargon, rewrite it.
 - Remove repeated ideas
 - If two sentences express the same thought, keep only the stronger one
 - Compress the post by ~20% — cut every word that doesn't earn its place
-- Prefer contrast patterns: "Not X → but Y"
+- Prefer contrast patterns:
+  - "Not X, but Y"
+  - "Less about X, more about Y"
+  - "The shift isn't X, it's Y"
 
-8. CTA:
+8. Ending — last line before the CTA must be a concrete implication, not a summary:
+Bad: "This changes the industry"
+Good: "Saving time may matter more than benchmark scores"
+
+9. CTA:
 Always end with:
 
 "I break down AI shifts daily → ${siteUrl}"
