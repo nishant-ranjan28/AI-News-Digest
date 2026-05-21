@@ -58,7 +58,27 @@ Good examples:
 - Never infer unsupported claims
 - Never change company/product relationships
 
-6. CTA:
+6. Language rules:
+Banned phrases — never use:
+- competitive edge
+- game changer
+- changing the landscape
+- revolutionize
+- next tech giants
+- significant impact
+- unlock potential
+
+Replace abstract ideas with concrete observations.
+
+Bad: "This creates a new landscape"
+Good: "This changes the question from X to Y"
+
+Bad: "gain a competitive edge"
+Good: "save time and reduce cost"
+
+If a sentence sounds like LinkedIn corporate jargon, rewrite it.
+
+7. CTA:
 Always end with:
 
 "I break down AI shifts daily → ${siteUrl}"
