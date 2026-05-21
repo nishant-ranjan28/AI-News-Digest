@@ -10,10 +10,12 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true)
+    let cancelled = false
     fetch(`/api/admin/posts?date=${date}`)
       .then((r) => r.json())
-      .then((j) => { setPosts(j.posts ?? []); setLoading(false) })
+      .then((j) => { if (!cancelled) { setPosts(j.posts ?? []); setLoading(false) } })
+      .catch(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [date])
 
   return (

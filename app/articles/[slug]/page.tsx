@@ -1,4 +1,5 @@
 // app/articles/[slug]/page.tsx
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getPublishedArticleBySlug } from '@/lib/db'
 
@@ -53,7 +54,7 @@ export default async function ArticlePage({ params }: Props) {
         <hr className="my-12 border-gray-200" />
         <p className="text-sm text-gray-600">
           Want this in your inbox every morning?{' '}
-          <a href="/" className="text-indigo-600 font-semibold underline">Subscribe →</a>
+          <Link href="/" className="text-indigo-600 font-semibold underline">Subscribe →</Link>
         </p>
       </div>
     </main>
