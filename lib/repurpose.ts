@@ -10,7 +10,7 @@ export type ChannelConfig = {
 }
 
 const LINKEDIN_PROMPT = (signal: Signal, siteUrl: string) => `
-Create one LinkedIn post using this data:
+Create ONE LinkedIn post from this signal:
 
 Fact:
 ${signal.fact}
@@ -21,27 +21,47 @@ ${signal.shift}
 Why people should care:
 ${signal.whyCare}
 
-Rules:
-
 Structure:
 
-Hook
-Observation
-Implication
-CTA
+1. Hook (challenge assumptions)
+2. Observation
+3. Implication
+4. CTA
 
-Maximum:
-- 8 lines
+Rules:
+
+- Maximum 8 lines
+- Maximum 1 sentence per line
 - Short sentences
 - Human tone
 - No hashtags
-- No corporate jargon
+- No emojis
+- No hype
 - No predictions
-- No repeated ideas
+- No corporate jargon
 
-CTA:
+Do NOT use:
+
+- game changer
+- changing the landscape
+- competitive edge
+- significant impact
+- worth paying attention to
+- something is changing
+- revolutionize
+
+Prefer contrast:
+
+- Not X, but Y
+- Less X, more Y
+
+End with:
 
 "I break down AI shifts daily → ${siteUrl}"
+
+IMPORTANT:
+Do not restate the fact multiple times.
+Turn the shift into the main idea.
 
 Output ONLY the post text. No preface, no explanation, no markdown.
 `.trim()
@@ -135,9 +155,12 @@ export function buildSlug(theme: string, isoDate: string): string {
 export function cleanup(text: string): string {
   return text
     .replace(/competitive edge/gi, '')
-    .replace(/game changer/gi, '')
+    .replace(/game[- ]?changer/gi, '')
     .replace(/revolution/gi, '')
     .replace(/significant impact/gi, '')
+    .replace(/worth paying attention to/gi, '')
+    .replace(/something(?:'s| is) changing/gi, '')
+    .replace(/changing the landscape/gi, '')
     .replace(/  +/g, ' ')
     .trim()
 }

@@ -79,6 +79,21 @@ describe('cleanup', () => {
     const out = cleanup('  hello world  ')
     expect(out).toBe('hello world')
   })
+  it('removes hyphenated game-changer variant', () => {
+    const out = cleanup('This game-changer is amazing.')
+    expect(out.toLowerCase()).not.toContain('game-changer')
+    expect(out.toLowerCase()).not.toContain('game changer')
+  })
+  it('removes filler phrases the LLM slips through', () => {
+    const out = cleanup("Something's changing in tech and it's worth paying attention to.")
+    expect(out.toLowerCase()).not.toContain('worth paying attention to')
+    expect(out.toLowerCase()).not.toContain("something's changing")
+    expect(out.toLowerCase()).not.toContain('something is changing')
+  })
+  it('removes "changing the landscape" phrase', () => {
+    const out = cleanup('AI is changing the landscape of work.')
+    expect(out.toLowerCase()).not.toContain('changing the landscape')
+  })
 })
 
 // ---- LLM generation tests ----
