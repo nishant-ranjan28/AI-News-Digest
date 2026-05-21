@@ -57,6 +57,16 @@ export type NewsletterIssue = {
   created_at?: string
 }
 
+export type ExtractedSignal = {
+  id?: string
+  issue_date: string
+  anchor_headline: string
+  fact: string
+  shift: string
+  why_care: string
+  created_at?: string
+}
+
 let supabaseInstance: SupabaseClient | null = null
 
 export function getSupabaseClient(): SupabaseClient {
@@ -200,4 +210,25 @@ export async function getNewsletterIssue(date: string): Promise<NewsletterIssue 
     .maybeSingle()
   if (error) throw new Error(`DB error fetching newsletter_issue: ${error.message}`)
   return (data as NewsletterIssue) ?? null
+}
+
+export async function saveExtractedSignal(
+  signal: Omit<ExtractedSignal, 'id' | 'created_at'>
+): Promise<void> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase
+    .from('extracted_signals')
+    .upsert(signal, { onConflict: 'issue_date' })
+  if (error) throw new Error(`DB error saving extracted_signal: ${error.message}`)
+}
+
+export async function getExtractedSignalByDate(date: string): Promise<ExtractedSignal | null> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from('extracted_signals')
+    .select('*')
+    .eq('issue_date', date)
+    .maybeSingle()
+  if (error) throw new Error(`DB error fetching extracted_signal: ${error.message}`)
+  return (data as ExtractedSignal) ?? null
 }

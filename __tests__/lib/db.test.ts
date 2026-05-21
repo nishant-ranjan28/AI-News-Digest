@@ -11,6 +11,8 @@ import {
   getPublishedArticleBySlug,
   saveNewsletterIssue,
   getNewsletterIssue,
+  saveExtractedSignal,
+  getExtractedSignalByDate,
 } from '@/lib/db'
 
 jest.mock('@supabase/supabase-js', () => ({
@@ -272,5 +274,93 @@ describe('newsletter_issues helpers', () => {
 
     const result = await getNewsletterIssue('2026-05-20')
     expect(result).toBeNull()
+  })
+})
+
+describe('extracted_signals helpers', () => {
+  beforeEach(() => {
+    process.env.SUPABASE_URL = 'https://test.supabase.co'
+    process.env.SUPABASE_ANON_KEY = 'test-key'
+  })
+
+  it('saveExtractedSignal upserts on issue_date', async () => {
+    const client = getSupabaseClient()
+    const upsertMock = jest.fn().mockResolvedValue({ data: null, error: null })
+    const fromMock = client.from as unknown as jest.Mock
+    fromMock.mockReturnValueOnce({ upsert: upsertMock })
+
+    const row = {
+      issue_date: '2026-05-20',
+      anchor_headline: 'Anchor headline',
+      fact: 'A fact',
+      shift: 'A shift',
+      why_care: 'Why care',
+    }
+    await saveExtractedSignal(row)
+
+    expect(fromMock).toHaveBeenCalledWith('extracted_signals')
+    expect(upsertMock).toHaveBeenCalledWith(row, { onConflict: 'issue_date' })
+  })
+
+  it('saveExtractedSignal throws on supabase error', async () => {
+    const client = getSupabaseClient()
+    const upsertMock = jest.fn().mockResolvedValue({ data: null, error: { message: 'broken' } })
+    const fromMock = client.from as unknown as jest.Mock
+    fromMock.mockReturnValueOnce({ upsert: upsertMock })
+
+    await expect(
+      saveExtractedSignal({
+        issue_date: '2026-05-20',
+        anchor_headline: 'h',
+        fact: 'f',
+        shift: 's',
+        why_care: 'w',
+      })
+    ).rejects.toThrow(/broken/)
+  })
+
+  it('getExtractedSignalByDate returns row when found', async () => {
+    const client = getSupabaseClient()
+    const row = {
+      id: '1',
+      issue_date: '2026-05-20',
+      anchor_headline: 'h',
+      fact: 'f',
+      shift: 's',
+      why_care: 'w',
+    }
+    const maybeSingleMock = jest.fn().mockResolvedValue({ data: row, error: null })
+    const eqMock = jest.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
+    const selectMock = jest.fn().mockReturnValue({ eq: eqMock })
+    const fromMock = client.from as unknown as jest.Mock
+    fromMock.mockReturnValueOnce({ select: selectMock })
+
+    const result = await getExtractedSignalByDate('2026-05-20')
+    expect(fromMock).toHaveBeenCalledWith('extracted_signals')
+    expect(eqMock).toHaveBeenCalledWith('issue_date', '2026-05-20')
+    expect(result).toEqual(row)
+  })
+
+  it('getExtractedSignalByDate returns null when not found', async () => {
+    const client = getSupabaseClient()
+    const maybeSingleMock = jest.fn().mockResolvedValue({ data: null, error: null })
+    const eqMock = jest.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
+    const selectMock = jest.fn().mockReturnValue({ eq: eqMock })
+    const fromMock = client.from as unknown as jest.Mock
+    fromMock.mockReturnValueOnce({ select: selectMock })
+
+    const result = await getExtractedSignalByDate('2026-05-20')
+    expect(result).toBeNull()
+  })
+
+  it('getExtractedSignalByDate throws on supabase error', async () => {
+    const client = getSupabaseClient()
+    const maybeSingleMock = jest.fn().mockResolvedValue({ data: null, error: { message: 'kaboom' } })
+    const eqMock = jest.fn().mockReturnValue({ maybeSingle: maybeSingleMock })
+    const selectMock = jest.fn().mockReturnValue({ eq: eqMock })
+    const fromMock = client.from as unknown as jest.Mock
+    fromMock.mockReturnValueOnce({ select: selectMock })
+
+    await expect(getExtractedSignalByDate('2026-05-20')).rejects.toThrow(/kaboom/)
   })
 })
