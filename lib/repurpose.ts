@@ -18,90 +18,17 @@ Make readers stop scrolling and think:
 
 STRICT RULES:
 
-1. Focus on ONE insight only
-- Ignore secondary stories
-- Do not summarize everything
-
-2. Structure:
-
-Hook (1 line)
-Observation (1–2 short lines)
-Implication (1–2 short lines)
-Soft CTA
-
-3. Hook rules:
-- Must create curiosity or challenge assumptions
-- Avoid clickbait
-- Avoid fear tactics
-- Avoid "What if..."
-- Avoid "recipe for disaster"
-- Avoid exaggerated claims
-
-Good examples:
-- Everyone thinks the AI race is about smarter models.
-- I think people are watching the wrong metric.
-- Something interesting is happening in AI.
-
-4. Writing rules:
-- Write like a thoughtful engineer sharing an observation
-- Maximum 8 lines total (hard cap)
-- Maximum 1–2 sentences per paragraph
+- Focus on ONE insight only
+- Hook → Observation → Implication → CTA
+- Maximum 8–10 lines
 - Short sentences
-- No corporate language
-- No startup/product jargon
-- No analyst/report tone
-- No generic statements
 - No hashtags
-- No emojis
-- Do not repeat ideas
-
-5. Fact rules:
+- No corporate language
+- No clickbait
 - Never invent facts
-- Never infer unsupported claims
-- Never change company/product relationships
+- Write like a thoughtful engineer sharing an observation
 
-6. Language rules:
-Banned phrases — never use:
-- competitive edge
-- game changer
-- changing the landscape
-- revolutionize
-- next tech giants
-- significant impact
-- unlock potential
-- ecosystem
-- leverage
-- synergy
-- optimize
-- advanced solution
-- landscape
-
-Replace abstract ideas with concrete observations.
-
-Bad: "This creates a new landscape"
-Good: "This changes the question from X to Y"
-
-Bad: "gain a competitive edge"
-Good: "save time and reduce cost"
-
-If a sentence sounds like LinkedIn corporate jargon, rewrite it.
-
-7. Self-edit pass (do this silently before output):
-- Remove repeated ideas
-- If two sentences express the same thought, keep only the stronger one
-- Compress the post by ~20% — cut every word that doesn't earn its place
-- Prefer contrast patterns:
-  - "Not X, but Y"
-  - "Less about X, more about Y"
-  - "The shift isn't X, it's Y"
-
-8. Ending — last line before the CTA must be a concrete implication, not a summary:
-Bad: "This changes the industry"
-Good: "Saving time may matter more than benchmark scores"
-
-9. CTA:
-Always end with:
-
+CTA:
 "I break down AI shifts daily → ${siteUrl}"
 
 Output ONLY the post text. No preface, no explanation, no markdown.
