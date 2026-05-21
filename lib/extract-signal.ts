@@ -18,21 +18,46 @@ Return JSON only:
   "whyCare":""
 }
 
-Rules:
+Field rules:
 
-- Fact = objective event
-- Shift = larger trend/change
-- whyCare = real implication
+Fact:
+- Use the specific company, product, number, or event from the summary.
+- Name names. Mention dollar amounts, percentages, dates if present.
+- Do NOT generalize into a category ("companies", "tools", "the industry").
 
-Maximum:
-- 1 sentence each
+Shift:
+- Identify the broader trend this event signals.
+- One step more abstract than the fact, not three steps more abstract.
+
+WhyCare:
+- A concrete implication a reader can act on or argue with.
+- Not a prediction. Not hype.
+
+Length:
+- 1 sentence each. Maximum.
 
 Avoid:
-- repeating ideas
+- repeating ideas across fields
 - corporate words
 - hype
 - predictions
-- LinkedIn style writing
+- LinkedIn-style writing
+
+Example of GOOD output (notice the specificity):
+
+{
+  "fact":"Meta reportedly saves millions by combining AI tools across its products.",
+  "shift":"Companies may gain more from workflow design than model quality.",
+  "whyCare":"Integration could become a bigger advantage than benchmark performance."
+}
+
+Example of BAD output (too abstract — never produce this):
+
+{
+  "fact":"Companies combine AI tools.",
+  "shift":"Workflows matter more.",
+  "whyCare":"Saves money."
+}
 
 Summary:
 
