@@ -33,6 +33,30 @@ export type EmailLog = {
   error_message?: string
 }
 
+export type RepurposedChannel = 'linkedin' | 'twitter' | 'threads' | 'article'
+export type RepurposedStatus = 'draft' | 'published' | 'archived'
+
+export type RepurposedPost = {
+  id?: string
+  issue_date: string         // YYYY-MM-DD
+  channel: RepurposedChannel
+  content: string
+  metadata?: Record<string, unknown> | null
+  status?: RepurposedStatus
+  slug?: string | null
+  published_at?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export type NewsletterIssue = {
+  id?: string
+  issue_date: string
+  composed: unknown          // ComposedNewsletter, but lib/db avoids importing compose to prevent a cycle
+  subject?: string
+  created_at?: string
+}
+
 let supabaseInstance: SupabaseClient | null = null
 
 export function getSupabaseClient(): SupabaseClient {
@@ -106,4 +130,74 @@ export async function addSubscriber(email: string): Promise<void> {
     if (error.code === '23505') throw new Error('Email already subscribed')
     throw new Error(`DB error adding subscriber: ${error.message}`)
   }
+}
+
+export async function upsertRepurposedPost(
+  post: Omit<RepurposedPost, 'id' | 'created_at' | 'updated_at'>
+): Promise<void> {
+  const supabase = getSupabaseClient()
+  const row = { ...post, updated_at: new Date().toISOString() }
+  const { error } = await supabase
+    .from('repurposed_posts')
+    .upsert(row, { onConflict: 'issue_date,channel' })
+  if (error) throw new Error(`DB error upserting repurposed_post: ${error.message}`)
+}
+
+export async function getRepurposedPostsByDate(date: string): Promise<RepurposedPost[]> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from('repurposed_posts')
+    .select('*')
+    .eq('issue_date', date)
+    .order('channel', { ascending: true })
+  if (error) throw new Error(`DB error fetching repurposed_posts: ${error.message}`)
+  return (data ?? []) as RepurposedPost[]
+}
+
+export async function updateRepurposedPost(
+  id: string,
+  patch: Partial<Pick<RepurposedPost, 'content' | 'status' | 'slug' | 'published_at' | 'metadata'>>
+): Promise<void> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase
+    .from('repurposed_posts')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw new Error(`DB error updating repurposed_post: ${error.message}`)
+}
+
+export async function getPublishedArticleBySlug(slug: string): Promise<RepurposedPost | null> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from('repurposed_posts')
+    .select('*')
+    .eq('channel', 'article')
+    .eq('status', 'published')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (error) throw new Error(`DB error fetching article: ${error.message}`)
+  return (data as RepurposedPost) ?? null
+}
+
+export async function saveNewsletterIssue(
+  date: string,
+  composed: unknown,
+  subject?: string
+): Promise<void> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase
+    .from('newsletter_issues')
+    .upsert({ issue_date: date, composed, subject }, { onConflict: 'issue_date' })
+  if (error) throw new Error(`DB error saving newsletter_issue: ${error.message}`)
+}
+
+export async function getNewsletterIssue(date: string): Promise<NewsletterIssue | null> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from('newsletter_issues')
+    .select('*')
+    .eq('issue_date', date)
+    .maybeSingle()
+  if (error) throw new Error(`DB error fetching newsletter_issue: ${error.message}`)
+  return (data as NewsletterIssue) ?? null
 }
