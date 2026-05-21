@@ -13,7 +13,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (typeof body.slug === 'string') patch.slug = body.slug
   if (body.status) {
     patch.status = body.status
-    if (body.status === 'published') patch.published_at = new Date().toISOString()
+    if (body.status === 'published') {
+      patch.published_at = new Date().toISOString()
+    } else {
+      // Clear stale publish timestamp when reverting to draft or archived.
+      patch.published_at = null
+    }
   }
   if (Object.keys(patch).length === 0) return NextResponse.json({ error: 'Empty patch' }, { status: 400 })
   await updateRepurposedPost(id, patch)

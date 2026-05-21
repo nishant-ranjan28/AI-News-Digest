@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
-import { getNewsletterIssue, upsertRepurposedPost, type RepurposedChannel } from '@/lib/db'
+import {
+  getNewsletterIssue,
+  getRepurposedPostsByDate,
+  updateRepurposedPost,
+  upsertRepurposedPost,
+  type RepurposedChannel,
+} from '@/lib/db'
 import { generateForChannel, buildSlug } from '@/lib/repurpose'
 import type { ComposedNewsletter } from '@/lib/compose'
 
@@ -17,13 +23,21 @@ export async function POST(req: NextRequest) {
   if (!content) return NextResponse.json({ error: 'Generation failed' }, { status: 502 })
 
   const slug = channel === 'article' ? buildSlug(composed.theme, date) : null
-  await upsertRepurposedPost({
-    issue_date: date,
-    channel,
-    content,
-    status: 'draft',
-    slug,
-    metadata: { chars: content.length, theme: composed.theme, regenerated: true },
-  })
+  const metadata = { chars: content.length, theme: composed.theme, regenerated: true }
+
+  const existing = (await getRepurposedPostsByDate(date)).find((p) => p.channel === channel)
+  if (existing?.id) {
+    // Preserve status and published_at on an existing row (e.g. an article that's already published).
+    await updateRepurposedPost(existing.id, { content, slug, metadata })
+  } else {
+    await upsertRepurposedPost({
+      issue_date: date,
+      channel,
+      content,
+      status: 'draft',
+      slug,
+      metadata,
+    })
+  }
   return NextResponse.json({ ok: true, content })
 }
