@@ -78,7 +78,13 @@ Good: "save time and reduce cost"
 
 If a sentence sounds like LinkedIn corporate jargon, rewrite it.
 
-7. CTA:
+7. Self-edit pass (do this silently before output):
+- Remove repeated ideas
+- If two sentences express the same thought, keep only the stronger one
+- Compress the post by ~20% — cut every word that doesn't earn its place
+- Prefer contrast patterns: "Not X → but Y"
+
+8. CTA:
 Always end with:
 
 "I break down AI shifts daily → ${siteUrl}"
