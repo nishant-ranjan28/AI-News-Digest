@@ -6,9 +6,11 @@ import {
   getActiveSubscribers,
   saveNewsletterIssue,
   upsertRepurposedPost,
+  saveExtractedSignal,
 } from '@/lib/db'
 import { sendDigestEmail } from '@/lib/email'
 import { generateAllChannels, buildSlug } from '@/lib/repurpose'
+import { extractSignal } from '@/lib/extract-signal'
 import type { ComposedNewsletter } from '@/lib/compose'
 
 jest.mock('@/lib/tavily', () => ({
@@ -33,6 +35,7 @@ jest.mock('@/lib/db', () => ({
   getActiveSubscribers: jest.fn().mockResolvedValue([]),
   saveNewsletterIssue: jest.fn().mockResolvedValue(undefined),
   upsertRepurposedPost: jest.fn().mockResolvedValue(undefined),
+  saveExtractedSignal: jest.fn().mockResolvedValue(undefined),
 }))
 jest.mock('@/lib/email', () => ({
   sendDigestEmail: jest.fn().mockResolvedValue(undefined),
@@ -45,6 +48,13 @@ jest.mock('@/lib/repurpose', () => ({
     { channel: 'article', content: '# Article body' },
   ]),
   buildSlug: jest.fn().mockReturnValue('2026-05-20-test-theme'),
+}))
+jest.mock('@/lib/extract-signal', () => ({
+  extractSignal: jest.fn().mockResolvedValue({
+    fact: 'A fact.',
+    shift: 'A shift.',
+    whyCare: 'Why care.',
+  }),
 }))
 
 describe('GET /api/cron', () => {
@@ -116,6 +126,12 @@ describe('GET /api/cron', () => {
       ;(sendDigestEmail as jest.Mock).mockResolvedValue(undefined)
       ;(saveNewsletterIssue as jest.Mock).mockResolvedValue(undefined)
       ;(upsertRepurposedPost as jest.Mock).mockResolvedValue(undefined)
+      ;(saveExtractedSignal as jest.Mock).mockResolvedValue(undefined)
+      ;(extractSignal as jest.Mock).mockResolvedValue({
+        fact: 'A fact.',
+        shift: 'A shift.',
+        whyCare: 'Why care.',
+      })
       ;(generateAllChannels as jest.Mock).mockResolvedValue([
         { channel: 'linkedin', content: 'LI post' },
         { channel: 'twitter', content: 'tweet' },
@@ -123,6 +139,74 @@ describe('GET /api/cron', () => {
         { channel: 'article', content: '# Article body' },
       ])
       ;(buildSlug as jest.Mock).mockReturnValue('2026-05-20-test-theme')
+    })
+
+    it('extracts and persists the signal, then passes it to generateAllChannels', async () => {
+      const req = new NextRequest('http://localhost/api/cron', {
+        method: 'GET',
+        headers: { Authorization: 'Bearer test-secret' },
+      })
+      const res = await GET(req)
+      expect(res.status).toBe(200)
+
+      expect(extractSignal).toHaveBeenCalledTimes(1)
+      const summaryArg = (extractSignal as jest.Mock).mock.calls[0][0] as string
+      expect(summaryArg).toContain('Anchor headline')
+      expect(summaryArg).toContain('Anchor body.')
+
+      expect(saveExtractedSignal).toHaveBeenCalledTimes(1)
+      const signalRow = (saveExtractedSignal as jest.Mock).mock.calls[0][0]
+      expect(signalRow).toMatchObject({
+        anchor_headline: 'Anchor headline',
+        fact: 'A fact.',
+        shift: 'A shift.',
+        why_care: 'Why care.',
+      })
+      expect(signalRow.issue_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+
+      expect(generateAllChannels).toHaveBeenCalledTimes(1)
+      const [composedArg, signalArg] = (generateAllChannels as jest.Mock).mock.calls[0]
+      expect(composedArg).toBe(composedFixture)
+      expect(signalArg).toEqual({
+        fact: 'A fact.',
+        shift: 'A shift.',
+        whyCare: 'Why care.',
+      })
+    })
+
+    it('still generates article when extractSignal returns null', async () => {
+      ;(extractSignal as jest.Mock).mockResolvedValue(null)
+      ;(generateAllChannels as jest.Mock).mockResolvedValue([
+        { channel: 'linkedin', content: null },
+        { channel: 'twitter', content: null },
+        { channel: 'threads', content: null },
+        { channel: 'article', content: '# Article body' },
+      ])
+
+      const req = new NextRequest('http://localhost/api/cron', {
+        method: 'GET',
+        headers: { Authorization: 'Bearer test-secret' },
+      })
+      const res = await GET(req)
+      expect(res.status).toBe(200)
+
+      expect(saveExtractedSignal).not.toHaveBeenCalled()
+      expect(generateAllChannels).toHaveBeenCalledTimes(1)
+      const [, signalArg] = (generateAllChannels as jest.Mock).mock.calls[0]
+      expect(signalArg).toBeNull()
+
+      // Article still upserted
+      const calls = (upsertRepurposedPost as jest.Mock).mock.calls.map((c) => c[0])
+      const byChannel = Object.fromEntries(calls.map((c) => [c.channel, c]))
+      expect(byChannel.article).toMatchObject({
+        channel: 'article',
+        content: '# Article body',
+        status: 'draft',
+      })
+      // Short-form skipped
+      expect(byChannel.linkedin).toBeUndefined()
+      expect(byChannel.twitter).toBeUndefined()
+      expect(byChannel.threads).toBeUndefined()
     })
 
     it('persists the issue and saves 4 repurposed drafts after sending email', async () => {

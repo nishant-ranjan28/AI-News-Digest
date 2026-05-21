@@ -23,19 +23,21 @@ import OpenAI from 'openai'
 import {
   CHANNEL_CONFIGS,
   buildSlug,
+  cleanup,
   generateForChannel,
   generateAllChannels,
 } from '@/lib/repurpose'
 import type { ComposedNewsletter } from '@/lib/compose'
+import type { Signal } from '@/lib/extract-signal'
 
 describe('CHANNEL_CONFIGS', () => {
   it('has entries for all four channels', () => {
     expect(Object.keys(CHANNEL_CONFIGS).sort()).toEqual(['article', 'linkedin', 'threads', 'twitter'])
   })
-  it('each config has a max length and prompt builder', () => {
+  it('each config has a max length', () => {
     for (const cfg of Object.values(CHANNEL_CONFIGS)) {
       expect(typeof cfg.maxChars).toBe('number')
-      expect(typeof cfg.buildPrompt).toBe('function')
+      expect(typeof cfg.channel).toBe('string')
     }
   })
 })
@@ -57,6 +59,25 @@ describe('buildSlug', () => {
   it('does not produce a trailing hyphen when truncation lands mid-hyphen-run', () => {
     const slug = buildSlug('a'.repeat(59) + ' word', '2026-05-20')
     expect(slug.endsWith('-')).toBe(false)
+  })
+})
+
+describe('cleanup', () => {
+  it('removes banned phrases case-insensitively', () => {
+    const input = 'This Game Changer creates a competitive edge and revolution with significant impact today.'
+    const out = cleanup(input)
+    expect(out.toLowerCase()).not.toContain('game changer')
+    expect(out.toLowerCase()).not.toContain('competitive edge')
+    expect(out.toLowerCase()).not.toContain('revolution')
+    expect(out.toLowerCase()).not.toContain('significant impact')
+  })
+  it('collapses double spaces produced by removals', () => {
+    const out = cleanup('A revolution in AI today.')
+    expect(out).not.toMatch(/  +/)
+  })
+  it('trims the final string', () => {
+    const out = cleanup('  hello world  ')
+    expect(out).toBe('hello world')
   })
 })
 
@@ -122,6 +143,15 @@ function makeComposed(overrides: Partial<ComposedNewsletter> = {}): ComposedNews
   }
 }
 
+function makeSignal(overrides: Partial<Signal> = {}): Signal {
+  return {
+    fact: 'OpenAI shipped a new model.',
+    shift: 'Frontier model cadence keeps accelerating.',
+    whyCare: 'Teams must replan their evaluation budgets.',
+    ...overrides,
+  }
+}
+
 describe('generateForChannel', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -140,7 +170,7 @@ describe('generateForChannel', () => {
       },
     }))
 
-    const result = await generateForChannel('linkedin', makeComposed())
+    const result = await generateForChannel('linkedin', makeComposed(), makeSignal())
     expect(result).toBe('Generated LinkedIn post text.')
   })
 
@@ -155,7 +185,7 @@ describe('generateForChannel', () => {
       chat: { completions: { create: openRouterCreate } },
     }))
 
-    const result = await generateForChannel('twitter', makeComposed())
+    const result = await generateForChannel('twitter', makeComposed(), makeSignal())
     expect(result).toBe('Fallback tweet text.')
     expect(openRouterCreate).toHaveBeenCalledTimes(1)
   })
@@ -168,7 +198,7 @@ describe('generateForChannel', () => {
       chat: { completions: { create: jest.fn().mockRejectedValue(new Error('OpenRouter down')) } },
     }))
 
-    const result = await generateForChannel('threads', makeComposed())
+    const result = await generateForChannel('threads', makeComposed(), makeSignal())
     expect(result).toBeNull()
   })
 
@@ -184,13 +214,12 @@ describe('generateForChannel', () => {
       },
     }))
 
-    const result = await generateForChannel('twitter', makeComposed())
+    const result = await generateForChannel('twitter', makeComposed(), makeSignal())
     expect(result).not.toBeNull()
     expect(result!.length).toBeLessThanOrEqual(CHANNEL_CONFIGS.twitter.maxChars)
   })
 
   it('does NOT truncate output for the article channel', async () => {
-    // article maxChars = 8000. Provide content > 8000 chars and expect it back unchanged.
     const longArticle = 'a'.repeat(8500)
     ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
       chat: {
@@ -202,9 +231,70 @@ describe('generateForChannel', () => {
       },
     }))
 
-    const result = await generateForChannel('article', makeComposed())
+    const result = await generateForChannel('article', makeComposed(), null)
     expect(result).toBe(longArticle)
     expect(result!.length).toBe(8500)
+  })
+
+  it('article generation works even when signal is null', async () => {
+    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: jest.fn().mockResolvedValue({
+            choices: [{ message: { content: '# Article body' } }],
+          }),
+        },
+      },
+    }))
+
+    const result = await generateForChannel('article', makeComposed(), null)
+    expect(result).toBe('# Article body')
+  })
+
+  it('short-form channels return null when signal is null', async () => {
+    const groqCreate = jest.fn()
+    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
+      chat: { completions: { create: groqCreate } },
+    }))
+
+    const linkedin = await generateForChannel('linkedin', makeComposed(), null)
+    const twitter = await generateForChannel('twitter', makeComposed(), null)
+    const threads = await generateForChannel('threads', makeComposed(), null)
+    expect(linkedin).toBeNull()
+    expect(twitter).toBeNull()
+    expect(threads).toBeNull()
+    expect(groqCreate).not.toHaveBeenCalled()
+  })
+
+  it('linkedin generation works when signal is provided', async () => {
+    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: jest.fn().mockResolvedValue({
+            choices: [{ message: { content: 'Hook line.\nObservation.\nImplication.\nCTA.' } }],
+          }),
+        },
+      },
+    }))
+
+    const result = await generateForChannel('linkedin', makeComposed(), makeSignal())
+    expect(result).toBe('Hook line.\nObservation.\nImplication.\nCTA.')
+  })
+
+  it('applies cleanup to final output (removes banned phrases)', async () => {
+    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: jest.fn().mockResolvedValue({
+            choices: [{ message: { content: 'This is a real game changer for AI.' } }],
+          }),
+        },
+      },
+    }))
+
+    const result = await generateForChannel('linkedin', makeComposed(), makeSignal())
+    expect(result).not.toBeNull()
+    expect(result!.toLowerCase()).not.toContain('game changer')
   })
 })
 
@@ -226,7 +316,7 @@ describe('generateAllChannels', () => {
       },
     }))
 
-    const results = await generateAllChannels(makeComposed())
+    const results = await generateAllChannels(makeComposed(), makeSignal())
     expect(results).toHaveLength(4)
     const channels = results.map((r) => r.channel).sort()
     expect(channels).toEqual(['article', 'linkedin', 'threads', 'twitter'])
@@ -234,5 +324,24 @@ describe('generateAllChannels', () => {
       expect(typeof r.channel).toBe('string')
       expect(r.content).toBe('Generated content.')
     }
+  })
+
+  it('short-form channels are null when signal is null, but article still generates', async () => {
+    ;(Groq as unknown as jest.Mock).mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: jest.fn().mockResolvedValue({
+            choices: [{ message: { content: '# Article body' } }],
+          }),
+        },
+      },
+    }))
+
+    const results = await generateAllChannels(makeComposed(), null)
+    const byChannel = Object.fromEntries(results.map((r) => [r.channel, r.content]))
+    expect(byChannel.linkedin).toBeNull()
+    expect(byChannel.twitter).toBeNull()
+    expect(byChannel.threads).toBeNull()
+    expect(byChannel.article).toBe('# Article body')
   })
 })

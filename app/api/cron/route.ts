@@ -11,9 +11,11 @@ import {
   getActiveSubscribers,
   upsertRepurposedPost,
   saveNewsletterIssue,
+  saveExtractedSignal,
 } from '@/lib/db'
 import { sendDigestEmail } from '@/lib/email'
 import { generateAllChannels, buildSlug } from '@/lib/repurpose'
+import { extractSignal, type Signal } from '@/lib/extract-signal'
 
 const SUMMARIZE_CONCURRENCY = 5
 
@@ -110,9 +112,39 @@ async function runPipeline() {
           )
         }
 
+        // Extract a single daily signal from the anchor story
+        step('Extracting daily signal from anchor story...')
+        const anchor = composed.stories.find((s) => s.role === 'anchor')
+        let signal: Signal | null = null
+        let anchorHeadline = ''
+        if (anchor) {
+          anchorHeadline = anchor.headline
+          const anchorSummary = `${anchor.headline}\n\n${anchor.body}`
+          signal = await extractSignal(anchorSummary)
+          if (signal) {
+            step(`Signal extracted: fact="${signal.fact.slice(0, 60)}..."`)
+            try {
+              await saveExtractedSignal({
+                issue_date: today,
+                anchor_headline: anchorHeadline,
+                fact: signal.fact,
+                shift: signal.shift,
+                why_care: signal.whyCare,
+              })
+              step('Signal saved.')
+            } catch (e) {
+              step(`Failed to save signal: ${(e as Error).message.slice(0, 120)}`)
+            }
+          } else {
+            step('Signal extraction failed — short-form channels will be skipped.')
+          }
+        } else {
+          step('No anchor story — signal extraction skipped.')
+        }
+
         step('Generating repurposed drafts (linkedin, twitter, threads, article)...')
         try {
-          const results = await generateAllChannels(composed)
+          const results = await generateAllChannels(composed, signal)
           let drafts = 0
           for (const { channel, content } of results) {
             if (!content) {

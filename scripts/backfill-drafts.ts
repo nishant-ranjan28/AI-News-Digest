@@ -36,10 +36,12 @@ import {
   getArticlesByDate,
   saveNewsletterIssue,
   upsertRepurposedPost,
+  saveExtractedSignal,
   type Article,
 } from '@/lib/db'
 import { composeNewsletter, type ComposeInput } from '@/lib/compose'
 import { generateAllChannels, buildSlug } from '@/lib/repurpose'
+import { extractSignal, type Signal } from '@/lib/extract-signal'
 
 const log = (msg: string) => console.log(`[backfill] ${msg}`)
 const err = (msg: string) => console.error(`[backfill] ${msg}`)
@@ -99,8 +101,35 @@ async function main(): Promise<void> {
   await saveNewsletterIssue(date, composed, subject)
   log('Snapshot saved.')
 
+  log('Extracting daily signal from anchor story...')
+  const anchor = composed.stories.find((s) => s.role === 'anchor')
+  let signal: Signal | null = null
+  if (anchor) {
+    const anchorSummary = `${anchor.headline}\n\n${anchor.body}`
+    signal = await extractSignal(anchorSummary)
+    if (signal) {
+      log(`Signal extracted: fact="${signal.fact.slice(0, 60)}..."`)
+      try {
+        await saveExtractedSignal({
+          issue_date: date,
+          anchor_headline: anchor.headline,
+          fact: signal.fact,
+          shift: signal.shift,
+          why_care: signal.whyCare,
+        })
+        log('Signal saved.')
+      } catch (e) {
+        log(`Failed to save signal: ${(e as Error).message.slice(0, 120)}`)
+      }
+    } else {
+      log('Signal extraction failed — short-form channels will be skipped.')
+    }
+  } else {
+    log('No anchor story — signal extraction skipped.')
+  }
+
   log('Generating repurposed drafts (linkedin, twitter, threads, article)...')
-  const results = await generateAllChannels(composed)
+  const results = await generateAllChannels(composed, signal)
 
   const saved: string[] = []
   const skipped: string[] = []

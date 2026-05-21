@@ -2,80 +2,84 @@ import Groq from 'groq-sdk'
 import OpenAI from 'openai'
 import type { ComposedNewsletter } from './compose'
 import type { RepurposedChannel } from './db'
+import type { Signal } from './extract-signal'
 
 export type ChannelConfig = {
   channel: RepurposedChannel
   maxChars: number
-  buildPrompt: (composed: ComposedNewsletter, siteUrl: string) => string
 }
 
-const LINKEDIN_PROMPT = (c: ComposedNewsletter, siteUrl: string) => `
-Transform the following newsletter/news into ONE engaging LinkedIn post.
+const LINKEDIN_PROMPT = (signal: Signal, siteUrl: string) => `
+Create one LinkedIn post using this data:
 
-GOAL:
-Make readers stop scrolling and think:
-"Hmm, I never thought about it that way."
+Fact:
+${signal.fact}
 
-STRICT RULES:
+Shift:
+${signal.shift}
 
-- Focus on ONE insight only
-- Hook → Observation → Implication → CTA
-- Maximum 8–10 lines
+Why people should care:
+${signal.whyCare}
+
+Rules:
+
+Structure:
+
+Hook
+Observation
+Implication
+CTA
+
+Maximum:
+- 8 lines
 - Short sentences
+- Human tone
 - No hashtags
-- No corporate language
-- No clickbait
-- Never invent facts
-- Write like a thoughtful engineer sharing an observation
+- No corporate jargon
+- No predictions
+- No repeated ideas
 
 CTA:
+
 "I break down AI shifts daily → ${siteUrl}"
 
 Output ONLY the post text. No preface, no explanation, no markdown.
-
-NEWS:
-
-Theme: ${c.theme}
-Signal: ${c.signal}
-Stories:
-${c.stories.map((s) => `- ${s.headline}: ${s.body}${s.hot_take ? ` [hot take: ${s.hot_take}]` : ''}`).join('\n')}
-Takeaway: ${c.quick_takeaway}
 `.trim()
 
-const TWITTER_PROMPT = (c: ComposedNewsletter, siteUrl: string) => `
-Transform the newsletter below into a single tweet.
+const TWITTER_PROMPT = (signal: Signal, siteUrl: string) => `
+Create one tweet using this data:
+
+Fact: ${signal.fact}
+Shift: ${signal.shift}
+Why care: ${signal.whyCare}
 
 Rules:
 - 240 characters MAX (leaving room for the URL)
-- ONE sharp insight. No multi-thread output.
-- No hashtags. At most one emoji.
+- ONE sharp insight
+- No hashtags
+- No predictions
+- At most one emoji
 - End with: ${siteUrl}
 
 Output ONLY the tweet text.
-
-NEWSLETTER:
-Theme: ${c.theme}
-Signal: ${c.signal}
-Top story: ${c.stories[0]?.headline} — ${c.stories[0]?.body}
-Takeaway: ${c.quick_takeaway}
 `.trim()
 
-const THREADS_PROMPT = (c: ComposedNewsletter, siteUrl: string) => `
-Transform the newsletter below into a Threads post.
+const THREADS_PROMPT = (signal: Signal, siteUrl: string) => `
+Create one Threads post using this data:
+
+Fact: ${signal.fact}
+Shift: ${signal.shift}
+Why care: ${signal.whyCare}
 
 Rules:
 - 4-6 lines, conversational
 - 500 character max total
-- No hashtags. At most one emoji.
+- No hashtags
+- No predictions
+- At most one emoji
 - End with: ${siteUrl}
 
 Output ONLY the post text.
-
-NEWSLETTER:
-Theme: ${c.theme}
-Signal: ${c.signal}
-Top story: ${c.stories[0]?.headline} — ${c.stories[0]?.body}
-Takeaway: ${c.quick_takeaway}
 `.trim()
 
 const ARTICLE_PROMPT = (c: ComposedNewsletter, siteUrl: string) => `
@@ -110,10 +114,10 @@ Site URL (for context only, do not include in output): ${siteUrl}
 `.trim()
 
 export const CHANNEL_CONFIGS: Record<RepurposedChannel, ChannelConfig> = {
-  linkedin: { channel: 'linkedin', maxChars: 1300, buildPrompt: LINKEDIN_PROMPT },
-  twitter:  { channel: 'twitter',  maxChars: 280,  buildPrompt: TWITTER_PROMPT  },
-  threads:  { channel: 'threads',  maxChars: 500,  buildPrompt: THREADS_PROMPT  },
-  article:  { channel: 'article',  maxChars: 8000, buildPrompt: ARTICLE_PROMPT  },
+  linkedin: { channel: 'linkedin', maxChars: 1300 },
+  twitter:  { channel: 'twitter',  maxChars: 280 },
+  threads:  { channel: 'threads',  maxChars: 500 },
+  article:  { channel: 'article',  maxChars: 8000 },
 }
 
 export function buildSlug(theme: string, isoDate: string): string {
@@ -126,6 +130,16 @@ export function buildSlug(theme: string, isoDate: string): string {
     .slice(0, 60)
     .replace(/^-+|-+$/g, '')
   return cleaned ? `${isoDate}-${cleaned}` : isoDate
+}
+
+export function cleanup(text: string): string {
+  return text
+    .replace(/competitive edge/gi, '')
+    .replace(/game changer/gi, '')
+    .replace(/revolution/gi, '')
+    .replace(/significant impact/gi, '')
+    .replace(/  +/g, ' ')
+    .trim()
 }
 
 async function callGroq(prompt: string): Promise<string> {
@@ -167,28 +181,48 @@ function truncateForChannel(text: string, channel: RepurposedChannel): string {
 export async function generateForChannel(
   channel: RepurposedChannel,
   composed: ComposedNewsletter,
+  signal: Signal | null,
   siteUrl: string = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ai.iamnishant.in'
 ): Promise<string | null> {
-  const cfg = CHANNEL_CONFIGS[channel]
-  const prompt = cfg.buildPrompt(composed, siteUrl)
-  try { return truncateForChannel(await callGroq(prompt), channel) } catch (e) {
+  let prompt: string
+  if (channel === 'article') {
+    prompt = ARTICLE_PROMPT(composed, siteUrl)
+  } else {
+    if (!signal) return null
+    if (channel === 'linkedin') prompt = LINKEDIN_PROMPT(signal, siteUrl)
+    else if (channel === 'twitter') prompt = TWITTER_PROMPT(signal, siteUrl)
+    else prompt = THREADS_PROMPT(signal, siteUrl)
+  }
+
+  let raw: string | null = null
+  try {
+    raw = await callGroq(prompt)
+  } catch (e) {
     console.warn(`[repurpose:${channel}] Groq failed:`, (e as Error).message)
   }
-  try { return truncateForChannel(await callOpenRouter(prompt), channel) } catch (e) {
-    console.warn(`[repurpose:${channel}] OpenRouter failed:`, (e as Error).message)
-    return null
+  if (raw === null) {
+    try {
+      raw = await callOpenRouter(prompt)
+    } catch (e) {
+      console.warn(`[repurpose:${channel}] OpenRouter failed:`, (e as Error).message)
+      return null
+    }
   }
+  return truncateForChannel(cleanup(raw), channel)
 }
 
 export type ChannelResult = { channel: RepurposedChannel; content: string | null }
 
 export async function generateAllChannels(
   composed: ComposedNewsletter,
+  signal: Signal | null,
   siteUrl?: string
 ): Promise<ChannelResult[]> {
   const channels: RepurposedChannel[] = ['linkedin', 'twitter', 'threads', 'article']
-  // Run in parallel — independent LLM calls
   return Promise.all(
-    channels.map(async (channel) => ({ channel, content: await generateForChannel(channel, composed, siteUrl) }))
+    channels.map(async (channel) => ({
+      channel,
+      content: await generateForChannel(channel, composed, signal, siteUrl),
+    }))
   )
 }

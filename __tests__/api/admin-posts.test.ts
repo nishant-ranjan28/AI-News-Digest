@@ -9,6 +9,7 @@ import {
   updateRepurposedPost,
   getNewsletterIssue,
   upsertRepurposedPost,
+  getExtractedSignalByDate,
 } from '@/lib/db'
 import { generateForChannel, buildSlug } from '@/lib/repurpose'
 import type { ComposedNewsletter } from '@/lib/compose'
@@ -22,6 +23,7 @@ jest.mock('@/lib/db', () => ({
   updateRepurposedPost: jest.fn(),
   getNewsletterIssue: jest.fn(),
   upsertRepurposedPost: jest.fn(),
+  getExtractedSignalByDate: jest.fn(),
 }))
 
 jest.mock('@/lib/repurpose', () => ({
@@ -283,6 +285,7 @@ describe('POST /api/admin/regenerate', () => {
       issue_date: '2026-05-20',
       composed: composedFixture,
     })
+    ;(getExtractedSignalByDate as jest.Mock).mockResolvedValue(null)
     ;(generateForChannel as jest.Mock).mockResolvedValue(null)
     const req = new NextRequest('http://localhost/api/admin/regenerate', {
       method: 'POST',
@@ -297,6 +300,13 @@ describe('POST /api/admin/regenerate', () => {
     ;(getNewsletterIssue as jest.Mock).mockResolvedValue({
       issue_date: '2026-05-20',
       composed: composedFixture,
+    })
+    ;(getExtractedSignalByDate as jest.Mock).mockResolvedValue({
+      issue_date: '2026-05-20',
+      anchor_headline: 'h',
+      fact: 'f',
+      shift: 's',
+      why_care: 'w',
     })
     ;(getRepurposedPostsByDate as jest.Mock).mockResolvedValue([])
     ;(generateForChannel as jest.Mock).mockResolvedValue('regenerated LI')
@@ -324,6 +334,7 @@ describe('POST /api/admin/regenerate', () => {
       issue_date: '2026-05-20',
       composed: composedFixture,
     })
+    ;(getExtractedSignalByDate as jest.Mock).mockResolvedValue(null)
     ;(getRepurposedPostsByDate as jest.Mock).mockResolvedValue([])
     ;(generateForChannel as jest.Mock).mockResolvedValue('# Markdown article body')
     ;(buildSlug as jest.Mock).mockReturnValue('2026-05-20-test-theme')
@@ -351,6 +362,13 @@ describe('POST /api/admin/regenerate', () => {
       issue_date: '2026-05-20',
       composed: composedFixture,
     })
+    ;(getExtractedSignalByDate as jest.Mock).mockResolvedValue({
+      issue_date: '2026-05-20',
+      anchor_headline: 'h',
+      fact: 'f',
+      shift: 's',
+      why_care: 'w',
+    })
     ;(getRepurposedPostsByDate as jest.Mock).mockResolvedValue([])
     ;(generateForChannel as jest.Mock).mockResolvedValue('fresh LI content')
     ;(upsertRepurposedPost as jest.Mock).mockResolvedValue(undefined)
@@ -371,6 +389,13 @@ describe('POST /api/admin/regenerate', () => {
     ;(getNewsletterIssue as jest.Mock).mockResolvedValue({
       issue_date: '2026-05-20',
       composed: composedFixture,
+    })
+    ;(getExtractedSignalByDate as jest.Mock).mockResolvedValue({
+      issue_date: '2026-05-20',
+      anchor_headline: 'h',
+      fact: 'f',
+      shift: 's',
+      why_care: 'w',
     })
     ;(getRepurposedPostsByDate as jest.Mock).mockResolvedValue([
       {

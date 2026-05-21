@@ -5,10 +5,12 @@ import {
   getRepurposedPostsByDate,
   updateRepurposedPost,
   upsertRepurposedPost,
+  getExtractedSignalByDate,
   type RepurposedChannel,
 } from '@/lib/db'
 import { generateForChannel, buildSlug } from '@/lib/repurpose'
 import type { ComposedNewsletter } from '@/lib/compose'
+import type { Signal } from '@/lib/extract-signal'
 
 export async function POST(req: NextRequest) {
   if (!(await requireAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -23,7 +25,11 @@ export async function POST(req: NextRequest) {
   if (!issue) return NextResponse.json({ error: 'No newsletter issue for that date' }, { status: 404 })
 
   const composed = issue.composed as ComposedNewsletter
-  const content = await generateForChannel(channel, composed)
+  const signal = await getExtractedSignalByDate(date)
+  const compatSignal: Signal | null = signal
+    ? { fact: signal.fact, shift: signal.shift, whyCare: signal.why_care }
+    : null
+  const content = await generateForChannel(channel, composed, compatSignal)
   if (!content) return NextResponse.json({ error: 'Generation failed' }, { status: 502 })
 
   const slug = channel === 'article' ? buildSlug(composed.theme, date) : null
