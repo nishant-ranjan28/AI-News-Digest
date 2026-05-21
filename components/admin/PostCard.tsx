@@ -6,24 +6,35 @@ export default function PostCard({ post, onUpdate }: { post: RepurposedPost; onU
   const [content, setContent] = useState(post.content)
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function save(patch: Partial<RepurposedPost>) {
+    setError(null)
     setSaving(true)
-    await fetch(`/api/admin/posts/${post.id}`, {
+    const res = await fetch(`/api/admin/posts/${post.id}`, {
       method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch),
     })
     setSaving(false)
+    if (!res.ok) {
+      setError(`Save failed (${res.status})`)
+      return
+    }
     onUpdate({ ...post, ...patch })
   }
 
   async function regenerate() {
+    setError(null)
     setSaving(true)
     const res = await fetch('/api/admin/regenerate', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ channel: post.channel, date: post.issue_date }),
     })
-    const json = await res.json()
+    const json = await res.json().catch(() => ({}))
     setSaving(false)
+    if (!res.ok) {
+      setError(`Regenerate failed (${res.status})`)
+      return
+    }
     if (json.content) { setContent(json.content); onUpdate({ ...post, content: json.content }) }
   }
 
@@ -52,9 +63,10 @@ export default function PostCard({ post, onUpdate }: { post: RepurposedPost; onU
         <button onClick={copy} className="px-3 py-1.5 text-sm border border-gray-300 rounded">{copied ? 'Copied!' : 'Copy'}</button>
         <button onClick={regenerate} disabled={saving} className="px-3 py-1.5 text-sm border border-gray-300 rounded disabled:opacity-50">Regenerate</button>
         {post.status !== 'published' && (
-          <button onClick={() => save({ status: 'published' })} disabled={saving} className="px-3 py-1.5 text-sm bg-green-600 text-white rounded disabled:opacity-50">Mark published</button>
+          <button onClick={() => save({ status: 'published', content })} disabled={saving} className="px-3 py-1.5 text-sm bg-green-600 text-white rounded disabled:opacity-50">Mark published</button>
         )}
       </div>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </section>
   )
 }

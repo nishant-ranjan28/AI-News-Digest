@@ -172,6 +172,41 @@ describe('PATCH /api/admin/posts/[id]', () => {
     })
   })
 
+  it('returns 400 when status is invalid', async () => {
+    ;(requireAdmin as jest.Mock).mockResolvedValue({ email: 'admin@example.com' })
+    const req = new NextRequest('http://localhost/api/admin/posts/abc', {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'foo' }),
+    })
+    const res = await patchPost(req, makeCtx('abc'))
+    expect(res.status).toBe(400)
+    expect(updateRepurposedPost).not.toHaveBeenCalled()
+  })
+
+  it('normalizes empty slug to null', async () => {
+    ;(requireAdmin as jest.Mock).mockResolvedValue({ email: 'admin@example.com' })
+    ;(updateRepurposedPost as jest.Mock).mockResolvedValue(undefined)
+    const req = new NextRequest('http://localhost/api/admin/posts/abc', {
+      method: 'PATCH',
+      body: JSON.stringify({ slug: '' }),
+    })
+    const res = await patchPost(req, makeCtx('abc'))
+    expect(res.status).toBe(200)
+    expect(updateRepurposedPost).toHaveBeenCalledWith('abc', { slug: null })
+  })
+
+  it('normalizes whitespace-only slug to null', async () => {
+    ;(requireAdmin as jest.Mock).mockResolvedValue({ email: 'admin@example.com' })
+    ;(updateRepurposedPost as jest.Mock).mockResolvedValue(undefined)
+    const req = new NextRequest('http://localhost/api/admin/posts/abc', {
+      method: 'PATCH',
+      body: JSON.stringify({ slug: '   ' }),
+    })
+    const res = await patchPost(req, makeCtx('abc'))
+    expect(res.status).toBe(200)
+    expect(updateRepurposedPost).toHaveBeenCalledWith('abc', { slug: null })
+  })
+
   it('returns 400 with empty body', async () => {
     ;(requireAdmin as jest.Mock).mockResolvedValue({ email: 'admin@example.com' })
     const req = new NextRequest('http://localhost/api/admin/posts/abc', {
@@ -217,6 +252,18 @@ describe('POST /api/admin/regenerate', () => {
     })
     const res = await regenerate(req)
     expect(res.status).toBe(400)
+  })
+
+  it('returns 400 when channel is invalid', async () => {
+    ;(requireAdmin as jest.Mock).mockResolvedValue({ email: 'admin@example.com' })
+    const req = new NextRequest('http://localhost/api/admin/regenerate', {
+      method: 'POST',
+      body: JSON.stringify({ channel: 'instagram', date: '2026-05-20' }),
+    })
+    const res = await regenerate(req)
+    expect(res.status).toBe(400)
+    expect(getNewsletterIssue).not.toHaveBeenCalled()
+    expect(generateForChannel).not.toHaveBeenCalled()
   })
 
   it('returns 404 when no newsletter issue exists', async () => {

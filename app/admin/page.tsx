@@ -24,7 +24,7 @@ export default function AdminPage() {
         <h1 className="text-2xl font-bold text-gray-900">Drafts for {date}</h1>
         <input
           type="date" value={date} max={today}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={(e) => { setLoading(true); setPosts([]); setDate(e.target.value) }}
           className="border border-gray-300 rounded px-3 py-1.5 text-sm"
         />
       </div>

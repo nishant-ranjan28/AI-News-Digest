@@ -2,15 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { updateRepurposedPost } from '@/lib/db'
 
-type PatchBody = { content?: string; status?: 'draft' | 'published' | 'archived'; slug?: string }
+type PostStatus = 'draft' | 'published' | 'archived'
+type PatchBody = { content?: string; status?: PostStatus; slug?: string }
+
+const ALLOWED_STATUSES: PostStatus[] = ['draft', 'published', 'archived']
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   if (!(await requireAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await ctx.params
   const body = (await req.json()) as PatchBody
+  if (body.status !== undefined && !ALLOWED_STATUSES.includes(body.status)) {
+    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+  }
   const patch: Record<string, unknown> = {}
   if (typeof body.content === 'string') patch.content = body.content
-  if (typeof body.slug === 'string') patch.slug = body.slug
+  if (typeof body.slug === 'string') {
+    const trimmed = body.slug.trim()
+    patch.slug = trimmed === '' ? null : trimmed
+  }
   if (body.status) {
     patch.status = body.status
     if (body.status === 'published') {

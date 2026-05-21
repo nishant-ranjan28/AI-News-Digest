@@ -106,7 +106,10 @@ describe('repurposed_posts helpers', () => {
     await upsertRepurposedPost(row)
 
     expect(fromMock).toHaveBeenCalledWith('repurposed_posts')
-    expect(upsertMock).toHaveBeenCalledWith(row, { onConflict: 'issue_date,channel' })
+    expect(upsertMock).toHaveBeenCalledWith(
+      { ...row, updated_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) },
+      { onConflict: 'issue_date,channel' }
+    )
   })
 
   it('upsertRepurposedPost throws when supabase returns an error', async () => {

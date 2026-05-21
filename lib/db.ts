@@ -136,9 +136,10 @@ export async function upsertRepurposedPost(
   post: Omit<RepurposedPost, 'id' | 'created_at' | 'updated_at'>
 ): Promise<void> {
   const supabase = getSupabaseClient()
+  const row = { ...post, updated_at: new Date().toISOString() }
   const { error } = await supabase
     .from('repurposed_posts')
-    .upsert(post, { onConflict: 'issue_date,channel' })
+    .upsert(row, { onConflict: 'issue_date,channel' })
   if (error) throw new Error(`DB error upserting repurposed_post: ${error.message}`)
 }
 
