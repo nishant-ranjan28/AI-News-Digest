@@ -63,6 +63,11 @@ IMPORTANT:
 Do not restate the fact multiple times.
 Turn the shift into the main idea.
 
+After writing:
+- Count unique ideas
+- If the same idea appears twice, keep only the strongest sentence
+- Prefer concrete language over abstract language
+
 Output ONLY the post text. No preface, no explanation, no markdown.
 `.trim()
 
