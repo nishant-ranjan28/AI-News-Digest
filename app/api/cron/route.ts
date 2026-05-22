@@ -9,13 +9,9 @@ import {
   articleExists,
   saveArticle,
   getActiveSubscribers,
-  upsertRepurposedPost,
   saveNewsletterIssue,
-  saveExtractedSignal,
 } from '@/lib/db'
 import { sendDigestEmail } from '@/lib/email'
-import { generateAllChannels, buildSlug } from '@/lib/repurpose'
-import { extractSignal, type Signal } from '@/lib/extract-signal'
 
 const SUMMARIZE_CONCURRENCY = 5
 
@@ -97,7 +93,7 @@ async function runPipeline() {
         await sendDigestEmail(composed, emails)
         step('Emails sent')
 
-        // Persist the issue + generate repurposed drafts (must not block/fail the email)
+        // Snapshot the issue so /api/cron-repurpose can pick it up.
         const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
         const subject = composed.subject_teasers
           .map((t) => `${t.text} ${t.emoji}`)
@@ -110,65 +106,6 @@ async function runPipeline() {
           step(
             `Failed to save newsletter_issue: ${(e as Error).message.slice(0, 120)}`
           )
-        }
-
-        // Extract a single daily signal from the anchor story
-        step('Extracting daily signal from anchor story...')
-        const anchor = composed.stories.find((s) => s.role === 'anchor')
-        let signal: Signal | null = null
-        let anchorHeadline = ''
-        if (anchor) {
-          anchorHeadline = anchor.headline
-          const anchorSummary = `${anchor.headline}\n\n${anchor.body}`
-          signal = await extractSignal(anchorSummary)
-          if (signal) {
-            step(`Signal extracted: fact="${signal.fact.slice(0, 60)}..."`)
-            try {
-              await saveExtractedSignal({
-                issue_date: today,
-                anchor_headline: anchorHeadline,
-                fact: signal.fact,
-                shift: signal.shift,
-                why_care: signal.whyCare,
-              })
-              step('Signal saved.')
-            } catch (e) {
-              step(`Failed to save signal: ${(e as Error).message.slice(0, 120)}`)
-            }
-          } else {
-            step('Signal extraction failed — short-form channels will be skipped.')
-          }
-        } else {
-          step('No anchor story — signal extraction skipped.')
-        }
-
-        step('Generating repurposed drafts (linkedin, twitter, threads, article)...')
-        try {
-          const results = await generateAllChannels(composed, signal)
-          let drafts = 0
-          for (const { channel, content } of results) {
-            if (!content) {
-              step(`Skipped ${channel} — generation failed`)
-              continue
-            }
-            const slug = channel === 'article' ? buildSlug(composed.theme, today) : null
-            try {
-              await upsertRepurposedPost({
-                issue_date: today,
-                channel,
-                content,
-                status: 'draft',
-                slug,
-                metadata: { chars: content.length, theme: composed.theme },
-              })
-              drafts++
-            } catch (e) {
-              step(`Failed to save ${channel}: ${(e as Error).message.slice(0, 120)}`)
-            }
-          }
-          step(`Saved ${drafts}/4 repurposed drafts`)
-        } catch (e) {
-          step(`Repurposing step failed: ${(e as Error).message.slice(0, 120)}`)
         }
       }
     } else {

@@ -3,6 +3,10 @@
     {
       "path": "/api/cron",
       "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/cron-repurpose",
+      "schedule": "45 0 * * *"
     }
   ]
 }
