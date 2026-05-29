@@ -44,6 +44,12 @@ export type ComposeInput = {
   source?: string
 }
 
+// Groq free-tier caps requests at 12,000 tokens/minute. The compose prompt's
+// system rules are ~2,500 tokens; each article adds ~425 tokens (1500-char
+// content slice + title/url). Capping candidates keeps us well under the limit.
+// The model only SELECTS 5 stories from the input, so extra candidates are waste.
+export const MAX_COMPOSE_ARTICLES = 12
+
 const PROMPT = (articles: ComposeInput[]) => {
   const items = articles
     .map(
@@ -240,7 +246,9 @@ async function viaOpenRouter(prompt: string): Promise<ComposedNewsletter> {
 
 export async function composeNewsletter(articles: ComposeInput[]): Promise<ComposedNewsletter | null> {
   if (articles.length === 0) return null
-  const prompt = PROMPT(articles)
+  // Cap candidates to stay under Groq's free-tier 12k TPM limit. The model only
+  // selects 5 stories, so feeding more than this is wasted tokens.
+  const prompt = PROMPT(articles.slice(0, MAX_COMPOSE_ARTICLES))
 
   try { return await viaGroq(prompt) } catch (e) {
     console.warn('[compose] Groq failed:', (e as Error).message)
