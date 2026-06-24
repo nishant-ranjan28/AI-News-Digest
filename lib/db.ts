@@ -72,9 +72,14 @@ let supabaseInstance: SupabaseClient | null = null
 export function getSupabaseClient(): SupabaseClient {
   if (!supabaseInstance) {
     const url = process.env.SUPABASE_URL
-    const key = process.env.SUPABASE_ANON_KEY
-    if (!url || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY')
-    supabaseInstance = createClient(url, key)
+    // Server-side only. The service-role key has BYPASSRLS, so these queries keep
+    // working now that RLS is enabled (migration 005). Never expose this key to
+    // the browser — it is not prefixed NEXT_PUBLIC_ and must stay server-side.
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+    supabaseInstance = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
   }
   return supabaseInstance
 }

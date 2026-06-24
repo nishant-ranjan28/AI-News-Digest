@@ -35,7 +35,7 @@ jest.mock('@supabase/supabase-js', () => ({
 describe('db helpers', () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = 'https://test.supabase.co'
-    process.env.SUPABASE_ANON_KEY = 'test-key'
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key'
   })
 
   it('getSupabaseClient returns a client instance', () => {
@@ -90,7 +90,7 @@ describe('db helpers', () => {
 describe('repurposed_posts helpers', () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = 'https://test.supabase.co'
-    process.env.SUPABASE_ANON_KEY = 'test-key'
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key'
   })
 
   it('upsertRepurposedPost calls upsert with onConflict on issue_date,channel', async () => {
@@ -221,7 +221,7 @@ describe('repurposed_posts helpers', () => {
 describe('newsletter_issues helpers', () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = 'https://test.supabase.co'
-    process.env.SUPABASE_ANON_KEY = 'test-key'
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key'
   })
 
   it('saveNewsletterIssue upserts on issue_date', async () => {
@@ -280,7 +280,7 @@ describe('newsletter_issues helpers', () => {
 describe('extracted_signals helpers', () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = 'https://test.supabase.co'
-    process.env.SUPABASE_ANON_KEY = 'test-key'
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key'
   })
 
   it('saveExtractedSignal upserts on issue_date', async () => {
