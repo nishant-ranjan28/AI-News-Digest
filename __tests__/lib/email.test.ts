@@ -103,9 +103,26 @@ describe('sendDigestEmail', () => {
     )
   })
 
-  it('throws when SENDGRID_API_KEY is missing', async () => {
+  it('throws when no email provider is configured', async () => {
+    delete process.env.BREVO_API_KEY
     delete process.env.SENDGRID_API_KEY
-    await expect(sendDigestEmail(mockComposed, ['user@test.com'])).rejects.toThrow('Missing SENDGRID_API_KEY')
+    delete process.env.RESEND_API_KEY
+    await expect(sendDigestEmail(mockComposed, ['user@test.com'])).rejects.toThrow(
+      'No email provider configured'
+    )
+  })
+
+  it('falls through to Resend when SendGrid is not configured', async () => {
+    delete process.env.BREVO_API_KEY
+    delete process.env.SENDGRID_API_KEY
+
+    await sendDigestEmail(mockComposed, ['user@test.com'])
+
+    expect(mockSend).not.toHaveBeenCalled()
+    expect(mockResendSend).toHaveBeenCalledTimes(1)
+    expect(mockLogEmailResult).toHaveBeenCalledWith(
+      expect.objectContaining({ recipient: 'user@test.com', status: 'sent', provider: 'resend' })
+    )
   })
 
   it('throws when SENDER_EMAIL is missing', async () => {
