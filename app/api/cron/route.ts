@@ -5,6 +5,7 @@ export const maxDuration = 60
 
 import { summarizeArticle } from '@/lib/summarize'
 import { composeNewsletter } from '@/lib/compose'
+import { selectForNewsletter, type SelectableArticle } from '@/lib/select-articles'
 import {
   articleExists,
   saveArticle,
@@ -14,6 +15,12 @@ import {
 import { sendDigestEmail } from '@/lib/email'
 
 const SUMMARIZE_CONCURRENCY = 5
+
+// A fresh article keeps its Tavily fields plus the importance score we compute
+// while summarizing, so the newsletter can be ordered by recency then importance.
+type ProcessResult =
+  | { status: 'saved'; article: SelectableArticle }
+  | { status: 'skipped' | 'failed' }
 
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
@@ -25,8 +32,10 @@ function timingSafeEqual(a: string, b: string): boolean {
 async function processArticle(
   article: TavilyArticle,
   step: (m: string) => void
-): Promise<'saved' | 'skipped' | 'failed'> {
-  if (await articleExists(article.url)) return 'skipped'
+): Promise<ProcessResult> {
+  // An article already in the DB was saved (and sent) on a previous run — skip
+  // it so it never lands in the newsletter a second time.
+  if (await articleExists(article.url)) return { status: 'skipped' }
 
   try {
     step(`Summarizing: "${article.title.slice(0, 60)}"`)
@@ -40,10 +49,13 @@ async function processArticle(
       source: article.source,
       published_date: article.published_date,
     })
-    return 'saved'
+    return {
+      status: 'saved',
+      article: { ...article, importance_score: result.importance_score },
+    }
   } catch (err) {
     step(`Failed article "${article.title.slice(0, 60)}": ${(err as Error).message?.slice(0, 100)}`)
-    return 'failed'
+    return { status: 'failed' }
   }
 }
 
@@ -60,14 +72,15 @@ async function runPipeline() {
     let saved = 0
     let skipped = 0
     let failed = 0
+    const freshArticles: SelectableArticle[] = []
 
     for (let i = 0; i < articles.length; i += SUMMARIZE_CONCURRENCY) {
       const batch = articles.slice(i, i + SUMMARIZE_CONCURRENCY)
       const results = await Promise.allSettled(batch.map((a) => processArticle(a, step)))
       for (const r of results) {
         if (r.status !== 'fulfilled') { failed++; continue }
-        if (r.value === 'saved') saved++
-        else if (r.value === 'skipped') skipped++
+        if (r.value.status === 'saved') { saved++; freshArticles.push(r.value.article) }
+        else if (r.value.status === 'skipped') skipped++
         else failed++
       }
     }
@@ -79,10 +92,15 @@ async function runPipeline() {
     const emails = subscribers.map((s) => s.email)
     step(`Found ${emails.length} subscriber(s)`)
 
-    if (emails.length > 0 && articles.length > 0) {
-      step(`Composing newsletter from ${articles.length} fresh articles...`)
+    // Compose ONLY from articles that are new this run, ordered newest-first with
+    // near-duplicate headlines removed. Already-sent articles (skipped above) are
+    // excluded, so subscribers never get the same story twice.
+    const candidates = selectForNewsletter(freshArticles)
+
+    if (emails.length > 0 && candidates.length > 0) {
+      step(`Composing newsletter from ${candidates.length} fresh, deduped articles...`)
       const composed = await composeNewsletter(
-        articles.map((a) => ({ title: a.title, url: a.url, content: a.content, source: a.source }))
+        candidates.map((a) => ({ title: a.title, url: a.url, content: a.content, source: a.source }))
       )
 
       if (!composed) {
@@ -109,7 +127,9 @@ async function runPipeline() {
         }
       }
     } else {
-      step('Skipped email — no subscribers or no articles')
+      step(
+        `Skipped email — ${emails.length === 0 ? 'no subscribers' : 'no fresh articles since last run'}`
+      )
     }
 
     step('Pipeline complete')
