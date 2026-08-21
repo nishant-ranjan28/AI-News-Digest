@@ -176,7 +176,7 @@ async function callGroq(prompt: string): Promise<string> {
   const groq = new Groq({ apiKey })
   const completion = await groq.chat.completions.create({
     messages: [{ role: 'user', content: prompt }],
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     temperature: 0.5,
     top_p: 0.9,
   })
@@ -189,7 +189,7 @@ async function callOpenRouter(prompt: string): Promise<string> {
   const client = new OpenAI({ apiKey, baseURL: 'https://openrouter.ai/api/v1' })
   const completion = await client.chat.completions.create({
     messages: [{ role: 'user', content: prompt }],
-    model: 'meta-llama/llama-3.3-70b-instruct:free',
+    model: 'z-ai/glm-5.2:free',
     temperature: 0.5,
     top_p: 0.9,
   })

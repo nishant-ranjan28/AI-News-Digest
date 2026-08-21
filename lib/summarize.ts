@@ -75,7 +75,7 @@ async function tryOpenRouter(title: string, content: string): Promise<SummarizeR
   })
   const completion = await client.chat.completions.create({
     messages: [{ role: 'user', content: PROMPT(title, content) }],
-    model: 'meta-llama/llama-3.3-70b-instruct:free',
+    model: 'z-ai/glm-5.2:free',
     response_format: { type: 'json_object' },
   })
   const text = completion.choices[0]?.message?.content ?? ''
@@ -89,7 +89,7 @@ async function tryGroq(title: string, content: string): Promise<SummarizeResult>
   const groq = new Groq({ apiKey })
   const completion = await groq.chat.completions.create({
     messages: [{ role: 'user', content: PROMPT(title, content) }],
-    model: 'llama-3.3-70b-versatile',
+    model: 'openai/gpt-oss-120b',
     response_format: { type: 'json_object' },
   })
   const text = completion.choices[0]?.message?.content ?? ''
