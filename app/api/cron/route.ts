@@ -16,6 +16,12 @@ import { sendDigestEmail } from '@/lib/email'
 
 const SUMMARIZE_CONCURRENCY = 5
 
+// Hard bound on work per invocation. Vercel caps this function at 60s; LLM
+// rate-limit (429) retries make per-article time unpredictable, so once we
+// have enough fresh articles for compose we stop summarizing. Unsaved URLs
+// reappear from Tavily's rolling 3-day window on a later run.
+const MAX_FRESH_PER_RUN = 12
+
 // A fresh article keeps its Tavily fields plus the importance score we compute
 // while summarizing, so the newsletter can be ordered by recency then importance.
 type ProcessResult =
@@ -59,8 +65,26 @@ async function processArticle(
   }
 }
 
-async function runPipeline() {
+async function runPipeline(): Promise<{
+  saved: number
+  skipped: number
+  failed: number
+  subscribers: number
+  candidates: number
+  sent: boolean
+  error?: string
+}> {
   const step = (msg: string) => console.log(`[cron] ${msg}`)
+
+  const stats = {
+    saved: 0,
+    skipped: 0,
+    failed: 0,
+    subscribers: 0,
+    candidates: 0,
+    sent: false,
+    error: undefined as string | undefined,
+  }
 
   try {
     step('Starting pipeline')
@@ -74,7 +98,7 @@ async function runPipeline() {
     let failed = 0
     const freshArticles: SelectableArticle[] = []
 
-    for (let i = 0; i < articles.length; i += SUMMARIZE_CONCURRENCY) {
+    for (let i = 0; i < articles.length && saved < MAX_FRESH_PER_RUN; i += SUMMARIZE_CONCURRENCY) {
       const batch = articles.slice(i, i + SUMMARIZE_CONCURRENCY)
       const results = await Promise.allSettled(batch.map((a) => processArticle(a, step)))
       for (const r of results) {
@@ -85,17 +109,23 @@ async function runPipeline() {
       }
     }
 
+    stats.saved = saved
+    stats.skipped = skipped
+    stats.failed = failed
+
     step(`Processing done — saved: ${saved}, skipped: ${skipped}, failed: ${failed}`)
 
     step('Fetching subscribers...')
     const subscribers = await getActiveSubscribers()
     const emails = subscribers.map((s) => s.email)
+    stats.subscribers = emails.length
     step(`Found ${emails.length} subscriber(s)`)
 
     // Compose ONLY from articles that are new this run, ordered newest-first with
     // near-duplicate headlines removed. Already-sent articles (skipped above) are
     // excluded, so subscribers never get the same story twice.
     const candidates = selectForNewsletter(freshArticles)
+    stats.candidates = candidates.length
 
     if (emails.length > 0 && candidates.length > 0) {
       step(`Composing newsletter from ${candidates.length} fresh, deduped articles...`)
@@ -104,11 +134,13 @@ async function runPipeline() {
       )
 
       if (!composed) {
+        stats.error = 'composition_failed'
         step('Composition returned null — skipping email send')
       } else {
         step(`Theme: ${composed.theme}`)
         step('Sending digest emails...')
         await sendDigestEmail(composed, emails)
+        stats.sent = true
         step('Emails sent')
 
         // Snapshot the issue so /api/cron-repurpose can pick it up.
@@ -133,9 +165,12 @@ async function runPipeline() {
     }
 
     step('Pipeline complete')
+    return stats
   } catch (err) {
     const message = (err as Error).message?.slice(0, 200) ?? 'Unknown error'
+    stats.error = message
     console.error(`[cron] Pipeline failed: ${message}`)
+    return stats
   }
 }
 
@@ -147,7 +182,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  await runPipeline()
+  const stats = await runPipeline()
 
-  return NextResponse.json({ success: true, message: 'Pipeline complete' })
+  return NextResponse.json({ success: !stats.error, ...stats })
 }

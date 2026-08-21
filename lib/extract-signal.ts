@@ -86,6 +86,7 @@ async function viaGroq(prompt: string): Promise<Signal> {
     model: 'openai/gpt-oss-120b',
     temperature: 0.3,
     top_p: 0.9,
+    reasoning_effort: 'low',
     response_format: { type: 'json_object' },
   })
   return parseSignal(completion.choices[0]?.message?.content ?? '')

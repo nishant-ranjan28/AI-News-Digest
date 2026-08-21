@@ -225,6 +225,7 @@ async function viaGroq(prompt: string): Promise<ComposedNewsletter> {
     model: 'openai/gpt-oss-120b',
     temperature: 0.4,
     top_p: 0.9,
+    reasoning_effort: 'low',
     response_format: { type: 'json_object' },
   })
   return parse(completion.choices[0]?.message?.content ?? '')

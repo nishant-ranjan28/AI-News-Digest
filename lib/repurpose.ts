@@ -179,6 +179,7 @@ async function callGroq(prompt: string): Promise<string> {
     model: 'openai/gpt-oss-120b',
     temperature: 0.5,
     top_p: 0.9,
+    reasoning_effort: 'low',
   })
   return (completion.choices[0]?.message?.content ?? '').trim()
 }

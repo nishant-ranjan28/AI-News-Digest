@@ -90,6 +90,9 @@ async function tryGroq(title: string, content: string): Promise<SummarizeResult>
   const completion = await groq.chat.completions.create({
     messages: [{ role: 'user', content: PROMPT(title, content) }],
     model: 'openai/gpt-oss-120b',
+    // gpt-oss is a reasoning model; full reasoning burns TPM and triggers
+    // 429s that blow the cron's 60s budget. Summaries don't need deep thought.
+    reasoning_effort: 'low',
     response_format: { type: 'json_object' },
   })
   const text = completion.choices[0]?.message?.content ?? ''
