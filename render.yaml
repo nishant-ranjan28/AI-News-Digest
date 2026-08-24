@@ -23,3 +23,28 @@ services:
         sync: false
       - key: PORT
         value: 3000
+
+  # Vercel Cron (vercel.json) does NOT run on Render. These cron jobs keep the
+  # daily digest firing when deployed to Render.
+  - type: cron
+    name: ai-news-digest-cron
+    runtime: node
+    schedule: "30 0 * * *"
+    buildCommand: npm install
+    startCommand: node -e "fetch(process.env.APP_URL + '/api/cron', { headers: { Authorization: 'Bearer ' + process.env.CRON_SECRET } }).then(r=>r.text().then(t=>console.log(t))).catch(e=>{console.error(e);process.exit(1)})"
+    envVars:
+      - key: APP_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+  - type: cron
+    name: ai-news-digest-cron-repurpose
+    runtime: node
+    schedule: "45 0 * * *"
+    buildCommand: npm install
+    startCommand: node -e "fetch(process.env.APP_URL + '/api/cron-repurpose', { headers: { Authorization: 'Bearer ' + process.env.CRON_SECRET } }).then(r=>r.text().then(t=>console.log(t))).catch(e=>{console.error(e);process.exit(1)})"
+    envVars:
+      - key: APP_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false

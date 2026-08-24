@@ -139,9 +139,14 @@ async function runPipeline(): Promise<{
       } else {
         step(`Theme: ${composed.theme}`)
         step('Sending digest emails...')
-        await sendDigestEmail(composed, emails)
-        stats.sent = true
-        step('Emails sent')
+        try {
+          await sendDigestEmail(composed, emails)
+          stats.sent = true
+          step('Emails sent')
+        } catch (e) {
+          stats.error = (e as Error).message.slice(0, 200)
+          step(`Email send failed: ${stats.error}`)
+        }
 
         // Snapshot the issue so /api/cron-repurpose can pick it up.
         const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD

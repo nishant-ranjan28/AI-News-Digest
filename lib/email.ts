@@ -310,4 +310,7 @@ export async function sendDigestEmail(
       console.log(`[email] ${pending.length} email(s) failed via ${provider}, retrying with next provider`)
     }
   }
+  if (pending.length > 0) {
+    throw new Error(`Email delivery failed for ${pending.length} recipient(s) after ${active.length} provider(s)`)
+  }
 }

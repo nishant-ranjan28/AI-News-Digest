@@ -117,6 +117,17 @@ export async function getArticlesByDate(date: string): Promise<Article[]> {
   return data ?? []
 }
 
+export async function getRecentArticles(limit = 12): Promise<Article[]> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from('articles')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(`DB error fetching recent articles: ${error.message}`)
+  return data ?? []
+}
+
 export async function getActiveSubscribers(): Promise<Subscriber[]> {
   const supabase = getSupabaseClient()
   const { data, error } = await supabase

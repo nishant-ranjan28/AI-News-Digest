@@ -148,11 +148,13 @@ describe('sendDigestEmail', () => {
     expect(html).toContain(encodeURIComponent('https://ai.iamnishant.in/'))
   })
 
-  it('logs failure for both providers when both fail', async () => {
+  it('logs failure for both providers when both fail and throws', async () => {
     mockSend.mockRejectedValue(new Error('SendGrid down'))
     mockResendSend.mockResolvedValue({ data: null, error: { message: 'Resend down' } })
 
-    await sendDigestEmail(mockComposed, ['user@test.com'])
+    await expect(sendDigestEmail(mockComposed, ['user@test.com'])).rejects.toThrow(
+      'Email delivery failed for 1 recipient'
+    )
 
     expect(mockLogEmailResult).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'failed', provider: 'sendgrid' })
