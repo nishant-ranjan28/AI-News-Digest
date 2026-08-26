@@ -20,7 +20,18 @@ const SUMMARIZE_CONCURRENCY = 5
 // rate-limit (429) retries make per-article time unpredictable, so once we
 // have enough fresh articles for compose we stop summarizing. Unsaved URLs
 // reappear from Tavily's rolling 3-day window on a later run.
-const MAX_FRESH_PER_RUN = 12
+// Reduced to 8 to leave headroom for compose + send within 60s.
+const MAX_FRESH_PER_RUN = 8
+
+// Timeout wrapper for critical async operations
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ])
+}
 
 // A fresh article keeps its Tavily fields plus the importance score we compute
 // while summarizing, so the newsletter can be ordered by recency then importance.
@@ -129,8 +140,12 @@ async function runPipeline(): Promise<{
 
     if (emails.length > 0 && candidates.length > 0) {
       step(`Composing newsletter from ${candidates.length} fresh, deduped articles...`)
-      const composed = await composeNewsletter(
-        candidates.map((a) => ({ title: a.title, url: a.url, content: a.content, source: a.source }))
+      let composed = await withTimeout(
+        composeNewsletter(
+          candidates.map((a) => ({ title: a.title, url: a.url, content: a.content, source: a.source }))
+        ),
+        30000,
+        'composeNewsletter'
       )
 
       if (!composed) {
@@ -140,7 +155,7 @@ async function runPipeline(): Promise<{
         step(`Theme: ${composed.theme}`)
         step('Sending digest emails...')
         try {
-          await sendDigestEmail(composed, emails)
+          await withTimeout(sendDigestEmail(composed, emails), 20000, 'sendDigestEmail')
           stats.sent = true
           step('Emails sent')
         } catch (e) {

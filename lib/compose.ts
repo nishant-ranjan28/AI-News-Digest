@@ -220,15 +220,33 @@ async function viaGroq(prompt: string): Promise<ComposedNewsletter> {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) throw new Error('Missing GROQ_API_KEY')
   const groq = new Groq({ apiKey })
-  const completion = await groq.chat.completions.create({
-    messages: [{ role: 'user', content: prompt }],
-    model: 'openai/gpt-oss-120b',
-    temperature: 0.4,
-    top_p: 0.9,
-    reasoning_effort: 'low',
-    response_format: { type: 'json_object' },
-  })
-  return parse(completion.choices[0]?.message?.content ?? '')
+  
+  // Retry with exponential backoff for 429 rate limits
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const completion = await groq.chat.completions.create({
+        messages: [{ role: 'user', content: prompt }],
+        model: 'openai/gpt-oss-120b',
+        temperature: 0.4,
+        top_p: 0.9,
+        reasoning_effort: 'low',
+        response_format: { type: 'json_object' },
+      })
+      return parse(completion.choices[0]?.message?.content ?? '')
+    } catch (err: any) {
+      lastError = err
+      const isRateLimit = err.status === 429 || err.message?.includes('rate_limit') || err.message?.includes('TPM')
+      if (isRateLimit && attempt < 2) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 5000)
+        console.warn(`[compose] Groq 429, retrying in ${delay}ms (attempt ${attempt + 1}/3)`)
+        await new Promise(r => setTimeout(r, delay))
+        continue
+      }
+      throw err
+    }
+  }
+  throw lastError
 }
 
 async function viaOpenRouter(prompt: string): Promise<ComposedNewsletter> {

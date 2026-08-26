@@ -87,16 +87,32 @@ async function tryGroq(title: string, content: string): Promise<SummarizeResult>
   if (!apiKey) throw new Error('Missing GROQ_API_KEY')
 
   const groq = new Groq({ apiKey })
-  const completion = await groq.chat.completions.create({
-    messages: [{ role: 'user', content: PROMPT(title, content) }],
-    model: 'openai/gpt-oss-120b',
-    // gpt-oss is a reasoning model; full reasoning burns TPM and triggers
-    // 429s that blow the cron's 60s budget. Summaries don't need deep thought.
-    reasoning_effort: 'low',
-    response_format: { type: 'json_object' },
-  })
-  const text = completion.choices[0]?.message?.content ?? ''
-  return parseResult(text)
+  
+  // Retry with exponential backoff for 429 rate limits
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const completion = await groq.chat.completions.create({
+        messages: [{ role: 'user', content: PROMPT(title, content) }],
+        model: 'openai/gpt-oss-120b',
+        reasoning_effort: 'low',
+        response_format: { type: 'json_object' },
+      })
+      const text = completion.choices[0]?.message?.content ?? ''
+      return parseResult(text)
+    } catch (err: any) {
+      lastError = err
+      const isRateLimit = err.status === 429 || err.message?.includes('rate_limit') || err.message?.includes('TPM')
+      if (isRateLimit && attempt < 2) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 5000)
+        console.warn(`Groq 429, retrying in ${delay}ms (attempt ${attempt + 1}/3)`)
+        await new Promise(r => setTimeout(r, delay))
+        continue
+      }
+      throw err
+    }
+  }
+  throw lastError
 }
 
 export async function summarizeArticle(article: {
