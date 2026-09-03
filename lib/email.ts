@@ -116,18 +116,8 @@ export function buildEmailHtml(composed: ComposedNewsletter, date: string): stri
     <p style="margin:0;text-align:center;color:${TEXT};font-size:15px;line-height:1.7;font-style:italic;">
       ${escapeHtml(composed.closing.text)}
     </p>
-    <div style="margin:22px 0 0;padding:14px 16px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;text-align:center;">
-      <p style="margin:0 0 8px;color:${TEXT};font-size:13px;font-weight:600;">Quick poll — was today useful?</p>
-      <p style="margin:0;font-size:13px;">
-        <a href="${pollYes}" style="display:inline-block;padding:6px 12px;margin:0 4px;background:#ffffff;border:1px solid #e5e7eb;border-radius:6px;color:${TEXT};font-weight:600;text-decoration:none;">👍 Yes</a>
-        <a href="${pollMid}" style="display:inline-block;padding:6px 12px;margin:0 4px;background:#ffffff;border:1px solid #e5e7eb;border-radius:6px;color:${TEXT};font-weight:600;text-decoration:none;">🤷 So-so</a>
-        <a href="${pollNo}" style="display:inline-block;padding:6px 12px;margin:0 4px;background:#ffffff;border:1px solid #e5e7eb;border-radius:6px;color:${TEXT};font-weight:600;text-decoration:none;">👎 No</a>
-      </p>
-      <p style="margin:8px 0 0;color:${MUTED};font-size:11px;">1 click → opens your email. Replies boost deliverability + tell me what to fix.</p>
-    </div>
-    <p style="margin:14px 0 0;text-align:center;font-size:13px;">
-      <a href="${replyBase}&body=${encodeURIComponent('My reply: ')}" style="color:${ACCENT};font-weight:600;text-decoration:none;">↩ Reply to this email</a>
-      <span style="color:${MUTED};"> — I read every reply</span>
+    <p style="margin:14px 0 0;text-align:center;color:${MUTED};font-size:12px;">
+      Was this useful? <a href="${pollYes}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Yes</a> <span style="color:#d1d5db;">·</span> <a href="${pollMid}" style="color:${ACCENT};font-weight:600;text-decoration:none;">So-so</a> <span style="color:#d1d5db;">·</span> <a href="${pollNo}" style="color:${ACCENT};font-weight:600;text-decoration:none;">No</a> <span style="color:#d1d5db;">·</span> <a href="${replyBase}&body=${encodeURIComponent('My reply: ')}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Reply</a>
     </p>`
 
   const moreLink = `
@@ -149,19 +139,9 @@ export function buildEmailHtml(composed: ComposedNewsletter, date: string): stri
   const previewText = escapeHtml(composed.quick_takeaway)
 
   const shareBlock = `
-    <div style="margin:32px 0 0;padding:18px 20px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;text-align:center;">
-      <p style="margin:0 0 8px;color:${TEXT};font-size:14px;font-weight:600;">Enjoying this? Pass it on.</p>
-      <p style="margin:0 0 12px;color:${MUTED};font-size:13px;line-height:1.6;">
-        Forward to a friend or share with your network — it's the best way to support the newsletter.
-      </p>
-      <p style="margin:0;font-size:13px;line-height:1.8;">
-        <a href="${forwardHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;margin:0 8px;">✉️ Forward</a>
-        <span style="color:#d1d5db;">·</span>
-        <a href="${xHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;margin:0 8px;">Post on X</a>
-        <span style="color:#d1d5db;">·</span>
-        <a href="${linkedInHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;margin:0 8px;">Share on LinkedIn</a>
-      </p>
-    </div>`
+    <p style="margin:28px 0 0;text-align:center;color:${MUTED};font-size:12px;line-height:1.8;">
+      Enjoying this? <a href="${forwardHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Forward</a> <span style="color:#d1d5db;">·</span> <a href="${xHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Post on X</a> <span style="color:#d1d5db;">·</span> <a href="${linkedInHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Share on LinkedIn</a>
+    </p>`
 
   return `
   <!DOCTYPE html>
