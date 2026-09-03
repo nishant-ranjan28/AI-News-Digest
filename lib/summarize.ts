@@ -120,7 +120,7 @@ export async function summarizeArticle(article: {
   content: string
 }): Promise<SummarizeResult> {
   const { title, content } = article
-  const truncatedContent = content.slice(0, 3000)
+  const truncatedContent = content.slice(0, 2000)
 
   try {
     return await tryGroq(title, truncatedContent)

@@ -48,13 +48,13 @@ export type ComposeInput = {
 // system rules are ~2,500 tokens; each article adds ~425 tokens (1500-char
 // content slice + title/url). Capping candidates keeps us well under the limit.
 // The model only SELECTS 5 stories from the input, so extra candidates are waste.
-export const MAX_COMPOSE_ARTICLES = 12
+export const MAX_COMPOSE_ARTICLES = 5
 
 const PROMPT = (articles: ComposeInput[]) => {
   const items = articles
     .map(
       (a, i) =>
-        `[${i + 1}] ${a.title}\nURL: ${a.url}\nSOURCE: ${a.source ?? ''}\nCONTENT: ${a.content.slice(0, 1500)}`
+        `[${i + 1}] ${a.title}\nURL: ${a.url}\nSOURCE: ${a.source ?? ''}\nCONTENT: ${a.content.slice(0, 1200)}`
     )
     .join('\n\n')
 
