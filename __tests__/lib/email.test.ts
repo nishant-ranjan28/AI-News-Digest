@@ -141,11 +141,18 @@ describe('sendDigestEmail', () => {
     expect(mockSend).toHaveBeenCalledTimes(1)
     const html = (mockSend.mock.calls[0][0] as { html: string }).html
 
-    expect(html).toContain('Enjoying this? Pass it on.')
+    expect(html).toContain('Enjoying this?')
     expect(html).toMatch(/href="mailto:\?subject=[^"]+&body=[^"]+"/)
     expect(html).toContain('https://twitter.com/intent/tweet?text=')
     expect(html).toContain('https://www.linkedin.com/sharing/share-offsite/?url=')
     expect(html).toContain(encodeURIComponent('https://ai.iamnishant.in/'))
+  })
+
+  it('includes per-recipient referral link', async () => {
+    await sendDigestEmail(mockComposed, ['user@test.com'])
+    const html = (mockSend.mock.calls[0][0] as { html: string }).html
+    expect(html).toContain('Your referral link:')
+    expect(html).toContain('?ref=')
   })
 
   it('logs failure for both providers when both fail and throws', async () => {

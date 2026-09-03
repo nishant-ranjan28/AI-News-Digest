@@ -13,10 +13,13 @@ export default function SubscribeBar() {
     setStatus('loading')
 
     try {
+      const ref = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') : null
+      const body: any = { email }
+      if (ref) body.ref = ref
       const res = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (res.ok) {

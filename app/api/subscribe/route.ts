@@ -11,13 +11,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  const { email } = body
+  const email = (body as any).email as string | undefined
+  const bodyRef = (body as any).ref ?? (body as any).referred_by
   if (!email || !EMAIL_REGEX.test(email)) {
     return NextResponse.json({ error: 'Valid email is required' }, { status: 400 })
   }
+  const ref = (bodyRef ?? req.nextUrl.searchParams.get('ref') ?? req.headers.get('x-referral-code') ?? '').toString().trim().slice(0, 20) || null
 
   try {
-    await addSubscriber(email.toLowerCase().trim())
+    await addSubscriber(email.toLowerCase().trim(), ref)
     return NextResponse.json({ success: true, message: 'Successfully subscribed!' })
   } catch (err) {
     const message = (err as Error).message

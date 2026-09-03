@@ -24,6 +24,9 @@ export type Subscriber = {
   email: string
   subscribed_at?: string
   active?: boolean
+  referral_code?: string | null
+  referred_by?: string | null
+  referral_count?: number
 }
 
 export type EmailLog = {
@@ -128,14 +131,32 @@ export async function getRecentArticles(limit = 12): Promise<Article[]> {
   return data ?? []
 }
 
+export function generateReferralCode(email: string): string {
+  // Deterministic 8-char code from email — no DB needed for old rows
+  const hash = Buffer.from(email.toLowerCase()).toString('base64').replace(/[^a-z0-9]/gi, '').slice(0, 8).toLowerCase()
+  return hash.padEnd(8, '0')
+}
+
 export async function getActiveSubscribers(): Promise<Subscriber[]> {
   const supabase = getSupabaseClient()
+  // Try with referral columns, fall back to email-only if migration not yet applied
   const { data, error } = await supabase
     .from('subscribers')
-    .select('email')
+    .select('email, referral_code, referral_count')
     .eq('active', true)
-  if (error) throw new Error(`DB error fetching subscribers: ${error.message}`)
-  return data ?? []
+  if (error) {
+    if (error.message?.includes('referral_code')) {
+      const { data: fallback, error: e2 } = await supabase.from('subscribers').select('email').eq('active', true)
+      if (e2) throw new Error(`DB error fetching subscribers: ${e2.message}`)
+      return (fallback ?? []).map((r: any) => ({ email: r.email, referral_code: generateReferralCode(r.email), referral_count: 0 }))
+    }
+    throw new Error(`DB error fetching subscribers: ${error.message}`)
+  }
+  return (data ?? []).map((r: any) => ({
+    email: r.email,
+    referral_code: r.referral_code ?? generateReferralCode(r.email),
+    referral_count: r.referral_count ?? 0,
+  }))
 }
 
 export async function logEmailResult(log: EmailLog): Promise<void> {
@@ -147,14 +168,33 @@ export async function logEmailResult(log: EmailLog): Promise<void> {
   }
 }
 
-export async function addSubscriber(email: string): Promise<void> {
+export async function addSubscriber(email: string, referredBy?: string | null): Promise<void> {
   const supabase = getSupabaseClient()
-  const { error } = await supabase
-    .from('subscribers')
-    .insert({ email })
+  const referral_code = generateReferralCode(email)
+  const row: any = { email, referral_code }
+  if (referredBy) row.referred_by = referredBy
+  const { error } = await supabase.from('subscribers').insert(row)
   if (error) {
+    if (error.message?.includes('referral_code') || error.message?.includes('referred_by')) {
+      // Migration not applied yet — fallback to email-only
+      const { error: e2 } = await supabase.from('subscribers').insert({ email })
+      if (e2) {
+        if (e2.code === '23505') throw new Error('Email already subscribed')
+        throw new Error(`DB error adding subscriber: ${e2.message}`)
+      }
+      return
+    }
     if (error.code === '23505') throw new Error('Email already subscribed')
     throw new Error(`DB error adding subscriber: ${error.message}`)
+  }
+  // Increment referrer count (best-effort)
+  if (referredBy) {
+    try {
+      const { data: ref } = await supabase.from('subscribers').select('referral_count').eq('referral_code', referredBy).maybeSingle()
+      if (ref) {
+        await supabase.from('subscribers').update({ referral_count: (ref.referral_count ?? 0) + 1 }).eq('referral_code', referredBy)
+      }
+    } catch {}
   }
 }
 

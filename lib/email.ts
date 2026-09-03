@@ -35,7 +35,7 @@ function sectionLabel(emoji: string, label: string): string {
     </div>`
 }
 
-export function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
+export function buildEmailHtml(composed: ComposedNewsletter, date: string, referralCode?: string | null): string {
   const storyBlocks = composed.stories
     .map((s, i) => {
       const headline = escapeHtml(s.headline)
@@ -146,10 +146,15 @@ export function buildEmailHtml(composed: ComposedNewsletter, date: string): stri
       <a href="https://cognixaihub.com/?utm_source=ai-news-digest&utm_medium=email&utm_campaign=daily_sponsor" style="display:inline-block;padding:8px 14px;background:${ACCENT};color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;border-radius:6px;">Request a Demo →</a>
     </div>`
 
+  const referralLink = referralCode ? `https://ai.iamnishant.in/?ref=${encodeURIComponent(referralCode)}` : SUBSCRIBE_URL
+  const referralLine = referralCode
+    ? `<p style="margin:10px 0 0;text-align:center;color:${MUTED};font-size:11px;">Your referral link: <a href="${referralLink}" style="color:${ACCENT};font-weight:600;text-decoration:none;">${referralLink}</a> — 3 referrals → shoutout</p>`
+    : ''
+
   const shareBlock = `
     <p style="margin:28px 0 0;text-align:center;color:${MUTED};font-size:12px;line-height:1.8;">
       Enjoying this? <a href="${forwardHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Forward</a> <span style="color:#d1d5db;">·</span> <a href="${xHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Post on X</a> <span style="color:#d1d5db;">·</span> <a href="${linkedInHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Share on LinkedIn</a>
-    </p>`
+    </p>${referralLine}`
 
   return `
   <!DOCTYPE html>
@@ -291,17 +296,19 @@ async function runPhase(
   return failed
 }
 
+function referralCodeFor(email: string): string {
+  return Buffer.from(email.toLowerCase()).toString('base64').replace(/[^a-z0-9]/gi, '').slice(0, 8).toLowerCase().padEnd(8, '0')
+}
+
 export async function sendDigestEmail(
   composed: ComposedNewsletter,
-  subscriberEmails: string[]
+  subscriberEmails: (string | { email: string; referral_code?: string | null })[]
 ): Promise<void> {
-  if (subscriberEmails.length === 0) return
+  const emails = subscriberEmails.map(e => typeof e === 'string' ? e : e.email)
+  if (emails.length === 0) return
 
   const senderEmail = process.env.SENDER_EMAIL
   if (!senderEmail) throw new Error('Missing SENDER_EMAIL')
-
-  // Build preview once for Brevo preheader / future use
-  void composed.quick_takeaway
 
   const date = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -309,7 +316,6 @@ export async function sendDigestEmail(
   const subject = composed.subject_teasers
     .map((t) => `${t.text} ${t.emoji}`)
     .join(', ')
-  const html = buildEmailHtml(composed, date)
 
   const chain: { provider: Provider; sendFn: SendFn; enabled: boolean }[] = [
     { provider: 'brevo', sendFn: sendViaBrevo, enabled: !!process.env.BREVO_API_KEY },
@@ -320,15 +326,32 @@ export async function sendDigestEmail(
   const active = chain.filter((p) => p.enabled)
   if (active.length === 0) throw new Error('No email provider configured (set BREVO_API_KEY, SENDGRID_API_KEY, or RESEND_API_KEY)')
 
-  let pending = subscriberEmails
-  for (const { provider, sendFn } of active) {
-    if (pending.length === 0) break
-    pending = await runPhase(pending, provider, sendFn, senderEmail, subject, html)
-    if (pending.length > 0) {
-      console.log(`[email] ${pending.length} email(s) failed via ${provider}, retrying with next provider`)
+  const failed: string[] = []
+  for (const raw of subscriberEmails) {
+    const email = typeof raw === 'string' ? raw : raw.email
+    const code = typeof raw === 'string' ? referralCodeFor(email) : (raw.referral_code ?? referralCodeFor(email))
+    const html = buildEmailHtml(composed, date, code)
+    let sent = false
+    let lastError: string | undefined
+    for (const { provider, sendFn } of active) {
+      const result = await sendFn(email, senderEmail, subject, html)
+      if (result.success) {
+        console.log(`[email] ${provider} sent to ${email} (ref:${code})`)
+        await logEmailResult({ recipient: email, status: 'sent', provider })
+        sent = true
+        break
+      } else {
+        console.error(`[email] ${provider} failed for ${email}: ${result.error}`)
+        await logEmailResult({ recipient: email, status: 'failed', provider, error_message: result.error })
+        lastError = result.error
+      }
+    }
+    if (!sent) {
+      failed.push(email)
+      console.log(`[email] all providers failed for ${email}: ${lastError}`)
     }
   }
-  if (pending.length > 0) {
-    throw new Error(`Email delivery failed for ${pending.length} recipient(s) after ${active.length} provider(s)`)
+  if (failed.length > 0) {
+    throw new Error(`Email delivery failed for ${failed.length} recipient(s) after ${active.length} provider(s)`)
   }
 }
