@@ -138,6 +138,14 @@ export function buildEmailHtml(composed: ComposedNewsletter, date: string): stri
 
   const previewText = escapeHtml(composed.quick_takeaway)
 
+  const sponsoredBlock = `
+    <div style="margin:24px 0 0;padding:14px 16px;border:1px solid #e5e7eb;border-left:3px solid ${ACCENT};border-radius:8px;background:#fafaff;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:${ACCENT};margin-bottom:6px;">Sponsored · CognixAI Hub</div>
+      <div style="font-size:15px;font-weight:700;color:${TEXT};margin-bottom:4px;">Your Business, Automated — Save 20+ hours/week</div>
+      <p style="margin:0 0 10px;color:${BODY_TEXT};font-size:13px;line-height:1.6;">AI agents for leads, follow-ups & support — 5× faster, 50+ integrations (Slack, HubSpot, WhatsApp). Fully managed, no tech team. <span style="color:${MUTED};">Live in 5 mins · Free 14-day trial.</span></p>
+      <a href="https://cognixaihub.com/?utm_source=ai-news-digest&utm_medium=email&utm_campaign=daily_sponsor" style="display:inline-block;padding:8px 14px;background:${ACCENT};color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;border-radius:6px;">Request a Demo →</a>
+    </div>`
+
   const shareBlock = `
     <p style="margin:28px 0 0;text-align:center;color:${MUTED};font-size:12px;line-height:1.8;">
       Enjoying this? <a href="${forwardHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Forward</a> <span style="color:#d1d5db;">·</span> <a href="${xHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Post on X</a> <span style="color:#d1d5db;">·</span> <a href="${linkedInHref}" style="color:${ACCENT};font-weight:600;text-decoration:none;">Share on LinkedIn</a>
@@ -161,6 +169,7 @@ export function buildEmailHtml(composed: ComposedNewsletter, date: string): stri
       ${toolBlock}
       ${takeawayBlock}
       ${closingBlock}
+      ${sponsoredBlock}
       ${moreLink}
       ${shareBlock}
       <p style="text-align:center;color:${MUTED};font-size:11px;margin:32px 0 0;">
