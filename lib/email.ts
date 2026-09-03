@@ -166,6 +166,7 @@ export function buildEmailHtml(composed: ComposedNewsletter, date: string, refer
         <h1 style="margin:0;font-size:24px;font-weight:800;color:${TEXT};letter-spacing:-0.5px;">AI News Digest</h1>
         <p style="color:${MUTED};margin:4px 0 0;font-size:12px;">${escapeHtml(date)}</p>
       </div>
+      <p style="margin:0 0 16px;text-align:center;color:${MUTED};font-size:11px;">Sponsored by <a href="https://cognixaihub.com/?utm_source=ai-news-digest&utm_medium=email&utm_campaign=daily_sponsor_top" style="color:${ACCENT};font-weight:600;text-decoration:none;">CognixAI Hub</a> — Automate your business, save 20+ hrs/week</p>
       ${greetingBlock}
       ${themeLine}
       ${signalBlock}
