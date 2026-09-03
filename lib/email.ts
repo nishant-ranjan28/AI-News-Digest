@@ -35,7 +35,7 @@ function sectionLabel(emoji: string, label: string): string {
     </div>`
 }
 
-function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
+export function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
   const storyBlocks = composed.stories
     .map((s, i) => {
       const headline = escapeHtml(s.headline)
