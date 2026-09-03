@@ -80,6 +80,7 @@ function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
 
   const storiesHeader = sectionLabel('📰', 'Stories')
 
+  const toolSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(composed.tool.name + ' AI tool')}`
   const toolBlock = `
     ${sectionLabel('🛠', 'Tool of the day')}
     <div style="text-align:center;">
@@ -91,9 +92,12 @@ function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
     <p style="margin:0 0 6px;color:${BODY_TEXT};font-size:14px;line-height:1.6;">
       <strong style="color:${TEXT};">Best for:</strong> ${escapeHtml(composed.tool.best_for)}
     </p>
-    <p style="margin:0;color:${ACCENT};font-size:14px;line-height:1.6;font-style:italic;">
+    <p style="margin:0 0 14px;color:${ACCENT};font-size:14px;line-height:1.6;font-style:italic;">
       <strong style="color:${TEXT};font-style:normal;">Why now:</strong> ${escapeHtml(composed.tool.why_now)}
-    </p>`
+    </p>
+    <div style="text-align:center;margin:14px 0 0;">
+      <a href="${toolSearchUrl}" style="display:inline-block;padding:10px 18px;background:${ACCENT};color:#ffffff;font-size:13px;font-weight:600;text-decoration:none;border-radius:6px;">Try ${escapeHtml(composed.tool.name)} →</a>
+    </div>`
 
   const takeawayBlock = `
     ${sectionLabel('💡', 'Quick takeaway')}
@@ -101,10 +105,29 @@ function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
       ${escapeHtml(composed.quick_takeaway)}
     </p>`
 
+  const senderEmail = process.env.SENDER_EMAIL || 'hello@iamnishant.in'
+  const replyBase = `mailto:${senderEmail}?subject=${encodeURIComponent('Re: ' + composed.theme)}`
+  const pollYes = `${replyBase}&body=${encodeURIComponent('My take: Loved it — sharp and useful')}`
+  const pollMid = `${replyBase}&body=${encodeURIComponent('My take: So-so — okay, a bit generic')}`
+  const pollNo = `${replyBase}&body=${encodeURIComponent('My take: Not useful today')}`
+
   const closingBlock = `
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0 20px;"/>
     <p style="margin:0;text-align:center;color:${TEXT};font-size:15px;line-height:1.7;font-style:italic;">
       ${escapeHtml(composed.closing.text)}
+    </p>
+    <div style="margin:22px 0 0;padding:14px 16px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;text-align:center;">
+      <p style="margin:0 0 8px;color:${TEXT};font-size:13px;font-weight:600;">Quick poll — was today useful?</p>
+      <p style="margin:0;font-size:13px;">
+        <a href="${pollYes}" style="display:inline-block;padding:6px 12px;margin:0 4px;background:#ffffff;border:1px solid #e5e7eb;border-radius:6px;color:${TEXT};font-weight:600;text-decoration:none;">👍 Yes</a>
+        <a href="${pollMid}" style="display:inline-block;padding:6px 12px;margin:0 4px;background:#ffffff;border:1px solid #e5e7eb;border-radius:6px;color:${TEXT};font-weight:600;text-decoration:none;">🤷 So-so</a>
+        <a href="${pollNo}" style="display:inline-block;padding:6px 12px;margin:0 4px;background:#ffffff;border:1px solid #e5e7eb;border-radius:6px;color:${TEXT};font-weight:600;text-decoration:none;">👎 No</a>
+      </p>
+      <p style="margin:8px 0 0;color:${MUTED};font-size:11px;">1 click → opens your email. Replies boost deliverability + tell me what to fix.</p>
+    </div>
+    <p style="margin:14px 0 0;text-align:center;font-size:13px;">
+      <a href="${replyBase}&body=${encodeURIComponent('My reply: ')}" style="color:${ACCENT};font-weight:600;text-decoration:none;">↩ Reply to this email</a>
+      <span style="color:${MUTED};"> — I read every reply</span>
     </p>`
 
   const moreLink = `
@@ -122,6 +145,8 @@ function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
   const forwardHref = `mailto:?subject=${shareMailSubject}&body=${shareMailBody}`
   const xHref = `https://twitter.com/intent/tweet?text=${shareTweet}&url=${encodeURIComponent(SUBSCRIBE_URL)}`
   const linkedInHref = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(SUBSCRIBE_URL)}`
+
+  const previewText = escapeHtml(composed.quick_takeaway)
 
   const shareBlock = `
     <div style="margin:32px 0 0;padding:18px 20px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;text-align:center;">
@@ -142,6 +167,7 @@ function buildEmailHtml(composed: ComposedNewsletter, date: string): string {
   <!DOCTYPE html>
   <html>
   <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#ffffff;margin:0;padding:20px;color:${TEXT};">
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${previewText}&#847; &#847; &#847; &#847; &#847; &#847; &#847; &#847;</div>
     <div style="max-width:640px;margin:0 auto;padding:24px;">
       <div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #e5e7eb;">
         <h1 style="margin:0;font-size:24px;font-weight:800;color:${TEXT};letter-spacing:-0.5px;">AI News Digest</h1>
@@ -284,6 +310,9 @@ export async function sendDigestEmail(
 
   const senderEmail = process.env.SENDER_EMAIL
   if (!senderEmail) throw new Error('Missing SENDER_EMAIL')
+
+  // Build preview once for Brevo preheader / future use
+  void composed.quick_takeaway
 
   const date = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
