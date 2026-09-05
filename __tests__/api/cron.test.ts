@@ -26,6 +26,7 @@ jest.mock('@/lib/db', () => ({
   saveArticle: jest.fn().mockResolvedValue(undefined),
   getArticlesByDate: jest.fn().mockResolvedValue([]),
   getRecentArticles: jest.fn().mockResolvedValue([]),
+  getRecentToolNames: jest.fn().mockResolvedValue([]),
   getActiveSubscribers: jest.fn().mockResolvedValue([]),
   saveNewsletterIssue: jest.fn().mockResolvedValue(undefined),
 }))

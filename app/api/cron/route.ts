@@ -11,6 +11,7 @@ import {
   saveArticle,
   getActiveSubscribers,
   saveNewsletterIssue,
+  getRecentToolNames,
 } from '@/lib/db'
 import { sendDigestEmail } from '@/lib/email'
 
@@ -133,9 +134,8 @@ async function runPipeline(): Promise<{
 
     step('Fetching subscribers...')
     const subscribers = await getActiveSubscribers()
-    const emails = subscribers.map((s) => s.email)
-    stats.subscribers = emails.length
-    step(`Found ${emails.length} subscriber(s)`)
+    stats.subscribers = subscribers.length
+    step(`Found ${subscribers.length} subscriber(s)`)
 
     // Compose ONLY from articles that are new this run, ordered newest-first with
     // near-duplicate headlines removed. Already-sent articles (skipped above) are
@@ -143,11 +143,14 @@ async function runPipeline(): Promise<{
     const candidates = selectForNewsletter(freshArticles)
     stats.candidates = candidates.length
 
-    if (emails.length > 0 && candidates.length > 0) {
+    if (subscribers.length > 0 && candidates.length > 0) {
+      const bannedTools = await getRecentToolNames(14).catch(() => [] as string[])
+      if (bannedTools.length) step(`Banned recent tools (14d): ${bannedTools.join(', ').slice(0, 80)}`)
       step(`Composing newsletter from ${candidates.length} fresh, deduped articles...`)
       let composed = await withTimeout(
         composeNewsletter(
-          candidates.map((a) => ({ title: a.title, url: a.url, content: a.content, source: a.source }))
+          candidates.map((a) => ({ title: a.title, url: a.url, content: a.content, source: a.source })),
+          bannedTools
         ),
         30000,
         'composeNewsletter'
@@ -160,7 +163,7 @@ async function runPipeline(): Promise<{
         step(`Theme: ${composed.theme}`)
         step('Sending digest emails...')
         try {
-          await withTimeout(sendDigestEmail(composed, emails), 20000, 'sendDigestEmail')
+          await withTimeout(sendDigestEmail(composed, subscribers as any), 20000, 'sendDigestEmail')
           stats.sent = true
           step('Emails sent')
         } catch (e) {
@@ -185,7 +188,7 @@ async function runPipeline(): Promise<{
       }
     } else {
       step(
-        `Skipped email — ${emails.length === 0 ? 'no subscribers' : 'no fresh articles since last run'}`
+        `Skipped email — ${subscribers.length === 0 ? 'no subscribers' : 'no fresh articles since last run'}`
       )
     }
 

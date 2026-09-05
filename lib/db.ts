@@ -288,3 +288,26 @@ export async function getExtractedSignalByDate(date: string): Promise<ExtractedS
   if (error) throw new Error(`DB error fetching extracted_signal: ${error.message}`)
   return (data as ExtractedSignal) ?? null
 }
+
+export async function getRecentToolNames(days = 14): Promise<string[]> {
+  const supabase = getSupabaseClient()
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+  const sinceStr = since.toISOString().slice(0, 10)
+  const { data, error } = await supabase
+    .from('newsletter_issues')
+    .select('composed')
+    .gte('issue_date', sinceStr)
+    .order('issue_date', { ascending: false })
+    .limit(20)
+  if (error) {
+    console.warn('[db] getRecentToolNames failed:', error.message)
+    return []
+  }
+  const names: string[] = []
+  for (const row of data ?? []) {
+    const tool = (row.composed as any)?.tool?.name
+    if (typeof tool === 'string' && tool.trim()) names.push(tool.trim())
+  }
+  return [...new Set(names)]
+}

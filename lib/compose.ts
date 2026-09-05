@@ -50,7 +50,7 @@ export type ComposeInput = {
 // The model only SELECTS 5 stories from the input, so extra candidates are waste.
 export const MAX_COMPOSE_ARTICLES = 5
 
-const PROMPT = (articles: ComposeInput[]) => {
+const PROMPT = (articles: ComposeInput[], bannedTools: string[] = []) => {
   const items = articles
     .map(
       (a, i) =>
@@ -58,9 +58,13 @@ const PROMPT = (articles: ComposeInput[]) => {
     )
     .join('\n\n')
 
+  const bannedLine = bannedTools.length
+    ? `\n# RECENT TOOLS — DO NOT REPEAT\nThese were featured in the last 14 days, pick a different tool: ${bannedTools.join(', ')}\n`
+    : ''
+
   return `
 You are a top-tier AI newsletter writer. You write the way a smart creator talks to a friend — sharp, opinionated, fast to read.
-
+${bannedLine}
 Your job: turn the raw articles below into ONE coherent daily newsletter.
 
 # CORE PRINCIPLE
@@ -91,7 +95,7 @@ Every line must answer "why should I care?" in under 5 seconds. If it doesn't, c
    - GOOD examples (2025-26 era — newer / sharper picks): Cursor, Cline, Aider, Bolt.new, lovable.dev, v0, Replit Agent, Devin, Claude Code, Computer Use, OpenAI Operator, Granola, Wispr Flow, Browser Use, Suno, Pika, Runway Gen-3, Krea, Mistral Le Chat, DeepSeek, Perplexity Comet, SearchGPT, Notion AI, Cline, Continue.dev, Phind.
    - AVOID as defaults (only pick if they had a MAJOR release THIS WEEK): ChatGPT, Claude (the bare chat product), Perplexity (the bare search product), Gemini (the bare chat product), Microsoft Copilot.
    - Never invent fake tools. The product must really exist and the reader must be able to try it today.
-   - The "why_now" field is your hook — what makes THIS tool worth attention RIGHT NOW (a recent feature, a model upgrade, a use case that just clicked, growing traction). If you can't write a compelling why_now, pick a different tool.
+    - The "why_now" field is your hook — what makes THIS tool worth attention RIGHT NOW (a recent feature, a model upgrade, a use case that just clicked, growing traction). If you can't write a compelling why_now, pick a different tool. Include a 1-line copy-paste starter: e.g. "Try: npx aider --model gpt-4o" or "Prompt: Summarize this repo".
 
 6. SUBJECT LINE — TLDR-STYLE TEASERS: produce exactly 3 short teasers (one for the anchor, two for the most click-worthy supporting/contrast stories). Each teaser is 4-7 words capturing the news + a relevant emoji. They render as: "Teaser one 💬, Teaser two 📱, Teaser three 🤖". Pick emojis that match the news topic specifically (💬 chat/leaks, 📱 mobile/UI, 🤖 AI tools, 💸 funding, ⚖️ policy/legal, 🧠 research, 📈 metrics, 🔥 hot, 🚀 launches, 🤝 partnerships, 🛠 dev tools). Avoid generic emojis like ✨ or 📰.
 
@@ -263,11 +267,11 @@ async function viaOpenRouter(prompt: string): Promise<ComposedNewsletter> {
   return parse(completion.choices[0]?.message?.content ?? '')
 }
 
-export async function composeNewsletter(articles: ComposeInput[]): Promise<ComposedNewsletter | null> {
+export async function composeNewsletter(articles: ComposeInput[], bannedTools: string[] = []): Promise<ComposedNewsletter | null> {
   if (articles.length === 0) return null
   // Cap candidates to stay under Groq's free-tier 12k TPM limit. The model only
   // selects 5 stories, so feeding more than this is wasted tokens.
-  const prompt = PROMPT(articles.slice(0, MAX_COMPOSE_ARTICLES))
+  const prompt = PROMPT(articles.slice(0, MAX_COMPOSE_ARTICLES), bannedTools)
 
   try { return await viaGroq(prompt) } catch (e) {
     console.warn('[compose] Groq failed:', (e as Error).message)
